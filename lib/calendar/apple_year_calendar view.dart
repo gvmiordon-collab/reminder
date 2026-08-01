@@ -23,6 +23,13 @@ class AppleYearCalendarView extends StatelessWidget {
     this.backgroundColor = Colors.white,
     this.showYearHeader = true,
     this.childAspectRatio = 0.82,
+    this.yearHeaderStyle,
+    this.monthLabelStyle,
+    this.dayNumberStyle,
+    this.todayNumberStyle,
+    this.todayCircleSize = 16,
+    this.mainAxisSpacing = 22,
+    this.crossAxisSpacing = 10,
   });
 
   /// The year to render (e.g. 2026).
@@ -48,6 +55,28 @@ class AppleYearCalendarView extends StatelessWidget {
   /// Tune this if you change fonts/spacing and need to avoid overflow.
   final double childAspectRatio;
 
+  /// Style for the big year number at the top (default: 34, bold, black).
+  final TextStyle? yearHeaderStyle;
+
+  /// Style for each month's abbreviated name, e.g. "Jan" (default: 13, w600).
+  final TextStyle? monthLabelStyle;
+
+  /// Style for a normal (non-today) day number (default: 9, w400).
+  final TextStyle? dayNumberStyle;
+
+  /// Style for the day number *inside* the red "today" circle
+  /// (default: 9, w600, white).
+  final TextStyle? todayNumberStyle;
+
+  /// Diameter of the red "today" circle (default: 16).
+  final double todayCircleSize;
+
+  /// Vertical gap between month rows in the 3x4 grid (default: 22).
+  final double mainAxisSpacing;
+
+  /// Horizontal gap between month columns in the 3x4 grid (default: 10).
+  final double crossAxisSpacing;
+
   static const List<String> _monthAbbreviations = <String>[
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
@@ -67,20 +96,21 @@ class AppleYearCalendarView extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
               child: Text(
                 '$year',
-                style: const TextStyle(
-                  fontSize: 34,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                  letterSpacing: -0.5,
-                ),
+                style: yearHeaderStyle ??
+                    const TextStyle(
+                      fontSize: 34,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                      letterSpacing: -0.5,
+                    ),
               ),
             ),
           Expanded(
             child: GridView.count(
               crossAxisCount: 3,
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-              mainAxisSpacing: 22,
-              crossAxisSpacing: 10,
+              mainAxisSpacing: mainAxisSpacing,
+              crossAxisSpacing: crossAxisSpacing,
               childAspectRatio: childAspectRatio,
               children: List.generate(12, (index) {
                 final int month = index + 1;
@@ -90,6 +120,10 @@ class AppleYearCalendarView extends StatelessWidget {
                   today: today,
                   monthLabel: _monthAbbreviations[index],
                   todayColor: todayColor,
+                  monthLabelStyle: monthLabelStyle,
+                  dayNumberStyle: dayNumberStyle,
+                  todayNumberStyle: todayNumberStyle,
+                  todayCircleSize: todayCircleSize,
                   onMonthTapped: onMonthTapped,
                   onDayTapped: onDayTapped,
                 );
@@ -110,6 +144,10 @@ class _MonthBox extends StatelessWidget {
     required this.today,
     required this.monthLabel,
     required this.todayColor,
+    this.monthLabelStyle,
+    this.dayNumberStyle,
+    this.todayNumberStyle,
+    this.todayCircleSize = 16,
     this.onMonthTapped,
     this.onDayTapped,
   });
@@ -119,6 +157,10 @@ class _MonthBox extends StatelessWidget {
   final DateTime today;
   final String monthLabel;
   final Color todayColor;
+  final TextStyle? monthLabelStyle;
+  final TextStyle? dayNumberStyle;
+  final TextStyle? todayNumberStyle;
+  final double todayCircleSize;
   final ValueChanged<int>? onMonthTapped;
   final ValueChanged<DateTime>? onDayTapped;
 
@@ -159,6 +201,9 @@ class _MonthBox extends StatelessWidget {
                 day: currentDay,
                 isToday: _isToday(date),
                 todayColor: todayColor,
+                dayNumberStyle: dayNumberStyle,
+                todayNumberStyle: todayNumberStyle,
+                todayCircleSize: todayCircleSize,
                 onTap: onDayTapped == null ? null : () => onDayTapped!(date),
               ),
             ),
@@ -184,12 +229,13 @@ class _MonthBox extends StatelessWidget {
             child: Text(
               monthLabel,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
-                height: 1.0,
-              ),
+              style: monthLabelStyle ??
+                  const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                    height: 1.0,
+                  ),
             ),
           ),
         ),
@@ -206,12 +252,18 @@ class _DayCell extends StatelessWidget {
     required this.day,
     required this.isToday,
     required this.todayColor,
+    this.dayNumberStyle,
+    this.todayNumberStyle,
+    this.todayCircleSize = 16,
     this.onTap,
   });
 
   final int day;
   final bool isToday;
   final Color todayColor;
+  final TextStyle? dayNumberStyle;
+  final TextStyle? todayNumberStyle;
+  final double todayCircleSize;
   final VoidCallback? onTap;
 
   @override
@@ -224,8 +276,8 @@ class _DayCell extends StatelessWidget {
         child: Center(
           child: isToday
               ? Container(
-            width: 16,
-            height: 16,
+            width: todayCircleSize,
+            height: todayCircleSize,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: todayColor,
@@ -233,22 +285,24 @@ class _DayCell extends StatelessWidget {
             ),
             child: Text(
               '$day',
-              style: const TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-                height: 1.0,
-              ),
+              style: todayNumberStyle ??
+                  const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    height: 1.0,
+                  ),
             ),
           )
               : Text(
             '$day',
-            style: const TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w400,
-              color: Colors.black87,
-              height: 1.0,
-            ),
+            style: dayNumberStyle ??
+                const TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                  height: 1.0,
+                ),
           ),
         ),
       ),

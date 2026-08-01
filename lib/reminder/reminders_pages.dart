@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'dialog_box.dart';
 import 'reminder_structure.dart';
 
 class RemindersPages extends StatelessWidget {
