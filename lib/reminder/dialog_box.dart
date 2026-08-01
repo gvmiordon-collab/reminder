@@ -11,19 +11,7 @@ class DialogBox extends StatefulWidget {
 class _DialogBoxState extends State<DialogBox> {
   final _todocontrollor = TextEditingController();
   final _datecontroller = TextEditingController();
-  
 
-  void _sumbit() {
-    if(_todocontrollor.text.isEmpty || _datecontroller.text.isEmpty) {
-      Navigator.pop(context);
-      return;
-    }
-
-    Navigator.pop(context,{
-      'todo': _todocontrollor.text,
-      'date': _datecontroller.text,
-    });
-  }
 
   @override
   void dispose() {
@@ -67,7 +55,7 @@ class _DialogBoxState extends State<DialogBox> {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                MyButton(name: 'confirm', onPressed: _sumbit, color: Colors.tealAccent),
+                MyButton(name: 'confirm', onPressed: () {}, color: Colors.tealAccent),
                 SizedBox(width: 8.0,),
                 MyButton(name: 'cancel', onPressed: () => Navigator.pop(context), color: Colors.orangeAccent)
               ],

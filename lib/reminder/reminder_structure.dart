@@ -28,6 +28,7 @@ class _ReminderStructureState extends State<ReminderStructure> {
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Slidable(
+        // Delete button
         endActionPane: ActionPane(
           motion: StretchMotion(),
           children:[
@@ -38,6 +39,7 @@ class _ReminderStructureState extends State<ReminderStructure> {
             ),
           ],
         ),
+        // task complete button
         startActionPane: ActionPane(
           motion: BehindMotion(),
           children:[

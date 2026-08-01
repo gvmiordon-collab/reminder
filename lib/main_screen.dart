@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:reminder/reminder/dialog_box.dart';
 import 'package:reminder/calendar/calender.dart';
 import 'package:reminder/reminder/reminders_pages.dart';
-import 'package:reminder/reminder/provider.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -20,13 +19,11 @@ class _MainScreenState extends State<MainScreen> {
     Calender(),
   ];
 
-  Future<void> _createNewReminder() async {
-    final result = await showDialog(
+  void _createNewReminder() {
+    showDialog(
       context: context,
       builder: (context) => DialogBox(),
     );
-    if (result == null) return; // 使用者按 cancel
-    context.read<ReminderProvider>().addReminder(result['todo']!, result['date']!);
   }
 
 
