@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // 記得引入 intl package 處理日期格式
+import 'package:flutter/cupertino.dart'; // 新增：引入 Cupertino 元件庫
+import 'package:intl/intl.dart';
 import 'package:reminder/reminder/my_button.dart';
 
 class DialogBox extends StatefulWidget {
@@ -11,21 +12,17 @@ class DialogBox extends StatefulWidget {
 
 class _DialogBoxState extends State<DialogBox> {
   final _todocontrollor = TextEditingController();
-
-  // 1. 用 DateTime 變數取代原本的 _datecontroller
   DateTime? _selectedDateTime;
 
   @override
   void dispose() {
     _todocontrollor.dispose();
-    // 移除了 _datecontroller.dispose()
     super.dispose();
   }
 
-  // 2. 處理文字顯示格式的邏輯
   String get formattedText {
     if (_selectedDateTime == null) {
-      return "dealing (請選擇截止時間)"; // 預設的提示文字
+      return "dealing (請選擇截止時間)";
     }
 
     final now = DateTime.now();
@@ -37,7 +34,9 @@ class _DialogBoxState extends State<DialogBox> {
       _selectedDateTime!.day,
     );
 
-    final timeStr = DateFormat('H:mm').format(_selectedDateTime!);
+    // 格式化為 12 小時制顯示，例如 "3:00 PM" 或 "4:30 AM"
+    // 如果你想維持 24 小時制顯示可以改回 'H:mm'
+    final timeStr = DateFormat('h:mm a').format(_selectedDateTime!);
 
     if (targetDate == today) {
       return "Today, $timeStr";
@@ -49,8 +48,8 @@ class _DialogBoxState extends State<DialogBox> {
     }
   }
 
-  // 3. 彈出日曆與時間選擇器的邏輯
   Future<void> _pickDateTime(BuildContext context) async {
+    // 1. 揀日期 (保持不變)
     final DateTime? pickedDate = await showDatePicker(
       context: context,
       initialDate: _selectedDateTime ?? DateTime.now(),
@@ -60,22 +59,64 @@ class _DialogBoxState extends State<DialogBox> {
 
     if (pickedDate == null) return;
 
-    final TimeOfDay? pickedTime = await showTimePicker(
+    // 2. 揀時間 (改用 iOS 風格滾輪)
+    DateTime tempTime = _selectedDateTime ?? DateTime.now();
+
+    // 使用 showCupertinoModalPopup 底部彈出滾輪
+    final bool? confirmTime = await showCupertinoModalPopup<bool>(
       context: context,
-      initialTime: _selectedDateTime != null
-          ? TimeOfDay.fromDateTime(_selectedDateTime!)
-          : TimeOfDay.now(),
+      builder: (BuildContext builderContext) {
+        return Container(
+          height: 260,
+          color: Colors.white, // 背景顏色
+          child: Column(
+            children: [
+              // 頂部導航列 (取消 / 完成)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  CupertinoButton(
+                    child: const Text('取消'),
+                    onPressed: () => Navigator.of(builderContext).pop(false),
+                  ),
+                  CupertinoButton(
+                    child: const Text('完成', style: TextStyle(fontWeight: FontWeight.bold)),
+                    onPressed: () => Navigator.of(builderContext).pop(true),
+                  ),
+                ],
+              ),
+              const Divider(height: 1, thickness: 1),
+              // iOS 滾輪主體
+              Expanded(
+                child: SafeArea(
+                  top: false,
+                  child: CupertinoDatePicker(
+                    mode: CupertinoDatePickerMode.time,
+                    use24hFormat: false, // 確保是 12小時制 (出現 1-12, 00-59, AM/PM)
+                    initialDateTime: tempTime,
+                    onDateTimeChanged: (DateTime newTime) {
+                      tempTime = newTime; // 滾動時即時更新臨時變數
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
 
-    if (pickedTime == null) return;
+    // 如果冇撳「完成」就退出
+    if (confirmTime != true) return;
 
+    // 3. 將日曆嘅「日期」同滾輪嘅「時間」結合
     setState(() {
       _selectedDateTime = DateTime(
         pickedDate.year,
         pickedDate.month,
         pickedDate.day,
-        pickedTime.hour,
-        pickedTime.minute,
+        tempTime.hour,
+        tempTime.minute,
       );
     });
   }
@@ -101,19 +142,17 @@ class _DialogBoxState extends State<DialogBox> {
                   hintText: 'what you want to do?'
               ),
             ),
-            const SizedBox(height: 12.0), // 稍微拉開一點距離
+            const SizedBox(height: 12.0),
 
-            // ==========================================
-            // 4. 這裡取代了原本的 TextField
-            // ==========================================
+            // 日期時間選擇按鈕
             InkWell(
               onTap: () => _pickDateTime(context),
-              borderRadius: BorderRadius.circular(4), // 配合 OutlineInputBorder 的圓角
+              borderRadius: BorderRadius.circular(4),
               child: Container(
-                width: double.infinity, // 讓按鈕寬度跟上面的 TextField 一樣
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16), // 調整高度使其與 TextField 相若
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.black54), // 模仿 TextField 的邊框
+                  border: Border.all(color: Colors.black54),
                   borderRadius: BorderRadius.circular(4),
                   color: Colors.transparent,
                 ),
@@ -135,7 +174,6 @@ class _DialogBoxState extends State<DialogBox> {
                 ),
               ),
             ),
-            // ==========================================
 
             const SizedBox(height: 16.0),
             Row(
@@ -143,10 +181,7 @@ class _DialogBoxState extends State<DialogBox> {
               children: [
                 MyButton(
                     name: 'confirm',
-                    onPressed: () {
-                      // 當按下 confirm 時，你可以直接使用 _selectedDateTime
-                      // print('Task: ${_todocontrollor.text}, Deadline: $_selectedDateTime');
-                    },
+                    onPressed: () {},
                     color: Colors.tealAccent
                 ),
                 const SizedBox(width: 8.0),
