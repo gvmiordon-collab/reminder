@@ -51,4 +51,26 @@ class ReminderProvider extends ChangeNotifier {
     _reminders = _reminders.where((r) => r.id != id).toList();
     notifyListeners();
   }
+
+  // reminder_provider.dart 新增
+
+  /// 俾 Calendar 畫紫色 highlight 用：淨日期(冇時間)嘅 set
+  Set<DateTime> get datesWithReminders {
+    return _reminders
+        .map((r) => DateTime(r.dueDate.year, r.dueDate.month, r.dueDate.day))
+        .toSet();
+  }
+
+  /// 俾 bottom sheet 用：攞返指定一日嘅全部 reminder，跟 dueDate 排好序
+  List<Reminder> remindersOnDay(DateTime day) {
+    return _reminders.where((r) =>
+    r.dueDate.year == day.year &&
+        r.dueDate.month == day.month &&
+        r.dueDate.day == day.day).toList()
+      ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+  }
+
+
+
+
 }

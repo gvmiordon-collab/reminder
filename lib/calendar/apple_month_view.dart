@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 ///   year: 2026,
 ///   month: 8,
 ///   selectedDate: _selectedDate,
+///   highlightedDates: provider.datesWithReminders, // 有 reminder 嘅日子
 ///   onDayTapped: (date) => setState(() => _selectedDate = date),
 ///   onPreviousMonth: _goToPreviousMonth,
 ///   onNextMonth: _goToNextMonth,
@@ -39,6 +40,8 @@ class AppleMonthView extends StatelessWidget {
     this.selectedNumberStyle,
     this.otherMonthNumberStyle,
     this.showLeadingTrailingDays = true,
+    this.highlightedDates = const <DateTime>{},
+    this.highlightColor = const Color(0xFFAF52DE), // iOS systemPurple
   });
 
   /// The year of the month being displayed (e.g. 2026).
@@ -91,6 +94,13 @@ class AppleMonthView extends StatelessWidget {
   /// out the first/last week. If false, those cells are left blank.
   final bool showLeadingTrailingDays;
 
+  /// Dates (day-only — time component ignored) that should show a small
+  /// dot beneath the day number, indicating a reminder is due that day.
+  final Set<DateTime> highlightedDates;
+
+  /// Color of the reminder-indicator dot. Defaults to iOS systemPurple.
+  final Color highlightColor;
+
   static const List<String> _monthNames = <String>[
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December',
@@ -111,14 +121,10 @@ class AppleMonthView extends StatelessWidget {
     final int daysInMonth = DateTime(year, month + 1, 0).day;
     final int daysInPrevMonth = DateTime(year, month, 0).day;
 
-    // Dart's DateTime.weekday is Monday=1 ... Sunday=7.
-    // Convert to a Sunday-first index: Sunday=0 ... Saturday=6.
     final int startOffset = firstOfMonth.weekday % 7;
     final int totalCells = startOffset + daysInMonth;
     final int rowCount = (totalCells / 7).ceil();
 
-    // Flatten every visible cell (including dimmed lead/trail days) into a
-    // simple list of dates so the grid is always a clean rectangle.
     final List<_DayInfo> cells = List.generate(rowCount * 7, (i) {
       final int dayOffset = i - startOffset;
       if (dayOffset < 0) {
@@ -140,7 +146,6 @@ class AppleMonthView extends StatelessWidget {
       color: backgroundColor,
       child: Column(
         children: [
-          // Header: ‹  August 2026  ›
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
             child: Row(
@@ -172,7 +177,6 @@ class AppleMonthView extends StatelessWidget {
               ],
             ),
           ),
-          // Weekday letters: S M T W T F S
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
@@ -194,8 +198,6 @@ class AppleMonthView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          // Day grid — each week row shares the remaining height equally,
-          // so cells get bigger on taller screens instead of staying tiny.
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -211,14 +213,19 @@ class AppleMonthView extends StatelessWidget {
                         final bool isToday = _isSameDay(info.date, today);
                         final bool isSelected = selectedDate != null &&
                             _isSameDay(info.date, selectedDate!);
+                        final bool hasReminder = highlightedDates.contains(
+                          DateTime(info.date.year, info.date.month, info.date.day),
+                        );
                         return Expanded(
                           child: _MonthDayCell(
                             date: info.date,
                             isToday: isToday,
                             isSelected: isSelected,
                             inCurrentMonth: info.inCurrentMonth,
+                            hasReminder: hasReminder,
                             todayColor: todayColor,
                             selectedColor: selectedColor,
+                            dotColor: highlightColor,
                             dayNumberStyle: dayNumberStyle,
                             todayNumberStyle: todayNumberStyle,
                             selectedNumberStyle: selectedNumberStyle,
@@ -248,16 +255,19 @@ class _DayInfo {
 }
 
 /// A single tappable day cell inside the month grid. Solid red circle for
-/// "today", light grey circle for a tapped/selected day, and dimmed grey
-/// text for days that spill over from the adjacent month.
+/// "today", light grey circle for a tapped/selected day, dimmed grey text
+/// for adjacent-month days, and a small purple dot beneath the number when
+/// [hasReminder] is true.
 class _MonthDayCell extends StatelessWidget {
   const _MonthDayCell({
     required this.date,
     required this.isToday,
     required this.isSelected,
     required this.inCurrentMonth,
+    required this.hasReminder,
     required this.todayColor,
     required this.selectedColor,
+    required this.dotColor,
     this.dayNumberStyle,
     this.todayNumberStyle,
     this.selectedNumberStyle,
@@ -269,8 +279,10 @@ class _MonthDayCell extends StatelessWidget {
   final bool isToday;
   final bool isSelected;
   final bool inCurrentMonth;
+  final bool hasReminder;
   final Color todayColor;
   final Color selectedColor;
+  final Color dotColor;
   final TextStyle? dayNumberStyle;
   final TextStyle? todayNumberStyle;
   final TextStyle? selectedNumberStyle;
@@ -328,7 +340,27 @@ class _MonthDayCell extends StatelessWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Center(child: number),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            number,
+            const SizedBox(height: 3),
+            // 固定留位,唔理有冇 reminder 都佔緊呢行高度,咁行與行之間先對得齊
+            SizedBox(
+              width: 5,
+              height: 5,
+              child: hasReminder
+                  ? DecoratedBox(
+                decoration:
+                BoxDecoration(color: dotColor, shape: BoxShape.circle),
+              )
+                  : null,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

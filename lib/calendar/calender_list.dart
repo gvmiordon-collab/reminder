@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:reminder/reminder/reminder_provider.dart';
 import 'apple_year_calendar_view.dart';
 import 'apple_month_view.dart';
+import 'day_reminders_sheet.dart';
 
 enum _CalendarMode { month, year }
 
@@ -12,8 +15,6 @@ class CalenderList extends StatefulWidget {
 }
 
 class _CalenderListState extends State<CalenderList> {
-  // Default landing view is the single-month page — matches Apple Calendar,
-  // where you only see the 3x4 year grid after tapping the title to zoom out.
   _CalendarMode _mode = _CalendarMode.month;
 
   late int _selectedYear = DateTime.now().year;
@@ -48,13 +49,16 @@ class _CalenderListState extends State<CalenderList> {
   void _handleDayTapped(DateTime date) {
     setState(() {
       _selectedDate = date;
-      // Tapping a dimmed leading/trailing day (e.g. Aug 1 shown while
-      // viewing July) should smoothly carry you into that month, like iOS.
       _selectedMonth = date.month;
       _selectedYear = date.year;
     });
-    // TODO: push a day-detail / reminders-for-day page here.
-    debugPrint('Selected day $date');
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DayRemindersSheet(date: date),
+    );
   }
 
   void _handleMonthTapped(int month) {
@@ -66,6 +70,9 @@ class _CalenderListState extends State<CalenderList> {
 
   @override
   Widget build(BuildContext context) {
+    final Set<DateTime> highlightedDates =
+        context.watch<ReminderProvider>().datesWithReminders;
+
     if (_mode == _CalendarMode.year) {
       return Column(
         children: [
@@ -88,8 +95,10 @@ class _CalenderListState extends State<CalenderList> {
           Expanded(
             child: AppleYearCalendarView(
               year: _selectedYear,
+              highlightedDates: highlightedDates,
               onMonthTapped: _handleMonthTapped,
               onDayTapped: (date) {
+                // 撳年視圖入面某一日 = 跳返月視圖睇該月,暫時未喺呢度彈 bottom sheet
                 setState(() {
                   _selectedMonth = date.month;
                   _selectedYear = date.year;
@@ -107,6 +116,7 @@ class _CalenderListState extends State<CalenderList> {
       year: _selectedYear,
       month: _selectedMonth,
       selectedDate: _selectedDate,
+      highlightedDates: highlightedDates,
       onDayTapped: _handleDayTapped,
       onPreviousMonth: _goToPreviousMonth,
       onNextMonth: _goToNextMonth,

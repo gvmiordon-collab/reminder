@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 /// ```dart
 /// AppleYearCalendarView(
 ///   year: 2026,
+///   highlightedDates: provider.datesWithReminders,
 ///   onMonthTapped: (month) => debugPrint('Tapped month $month'),
 ///   onDayTapped: (date) => debugPrint('Tapped day $date'),
 /// )
@@ -30,52 +31,31 @@ class AppleYearCalendarView extends StatelessWidget {
     this.todayCircleSize = 16,
     this.mainAxisSpacing = 22,
     this.crossAxisSpacing = 10,
+    this.highlightedDates = const <DateTime>{},
+    this.highlightColor = const Color(0xFFAF52DE), // iOS systemPurple
   });
 
-  /// The year to render (e.g. 2026).
   final int year;
-
-  /// Called when the header of a month (its abbreviated name) is tapped.
   final ValueChanged<int>? onMonthTapped;
-
-  /// Called when an individual day cell is tapped.
   final ValueChanged<DateTime>? onDayTapped;
-
-  /// Color used for the "today" indicator circle. Defaults to iOS systemRed.
   final Color todayColor;
-
-  /// Background color of the whole view. Defaults to white to match the
-  /// minimalist iOS Calendar aesthetic.
   final Color backgroundColor;
-
-  /// Whether to render the large "2026"-style year header above the grid.
   final bool showYearHeader;
-
-  /// Aspect ratio (width / height) of each month box in the 3x4 grid.
-  /// Tune this if you change fonts/spacing and need to avoid overflow.
   final double childAspectRatio;
-
-  /// Style for the big year number at the top (default: 34, bold, black).
   final TextStyle? yearHeaderStyle;
-
-  /// Style for each month's abbreviated name, e.g. "Jan" (default: 13, w600).
   final TextStyle? monthLabelStyle;
-
-  /// Style for a normal (non-today) day number (default: 9, w400).
   final TextStyle? dayNumberStyle;
-
-  /// Style for the day number *inside* the red "today" circle
-  /// (default: 9, w600, white).
   final TextStyle? todayNumberStyle;
-
-  /// Diameter of the red "today" circle (default: 16).
   final double todayCircleSize;
-
-  /// Vertical gap between month rows in the 3x4 grid (default: 22).
   final double mainAxisSpacing;
-
-  /// Horizontal gap between month columns in the 3x4 grid (default: 10).
   final double crossAxisSpacing;
+
+  /// Dates (day-only) that should show a tiny purple dot beneath the day
+  /// number, indicating a reminder is due that day.
+  final Set<DateTime> highlightedDates;
+
+  /// Color of the reminder-indicator dot. Defaults to iOS systemPurple.
+  final Color highlightColor;
 
   static const List<String> _monthAbbreviations = <String>[
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -120,6 +100,8 @@ class AppleYearCalendarView extends StatelessWidget {
                   today: today,
                   monthLabel: _monthAbbreviations[index],
                   todayColor: todayColor,
+                  highlightedDates: highlightedDates,
+                  highlightColor: highlightColor,
                   monthLabelStyle: monthLabelStyle,
                   dayNumberStyle: dayNumberStyle,
                   todayNumberStyle: todayNumberStyle,
@@ -136,7 +118,6 @@ class AppleYearCalendarView extends StatelessWidget {
   }
 }
 
-/// A single mini-month box: month abbreviation header + micro day grid.
 class _MonthBox extends StatelessWidget {
   const _MonthBox({
     required this.year,
@@ -144,6 +125,8 @@ class _MonthBox extends StatelessWidget {
     required this.today,
     required this.monthLabel,
     required this.todayColor,
+    required this.highlightedDates,
+    required this.highlightColor,
     this.monthLabelStyle,
     this.dayNumberStyle,
     this.todayNumberStyle,
@@ -157,6 +140,8 @@ class _MonthBox extends StatelessWidget {
   final DateTime today;
   final String monthLabel;
   final Color todayColor;
+  final Set<DateTime> highlightedDates;
+  final Color highlightColor;
   final TextStyle? monthLabelStyle;
   final TextStyle? dayNumberStyle;
   final TextStyle? todayNumberStyle;
@@ -170,15 +155,10 @@ class _MonthBox extends StatelessWidget {
         date.day == today.day;
   }
 
-  /// Builds the rows of the micro day-grid (7 columns: Sun–Sat), using pure
-  /// `DateTime` math — no external date libraries.
   List<Widget> _buildDayRows() {
     final DateTime firstOfMonth = DateTime(year, month, 1);
-    // Day 0 of "next month" is the last day of the current month.
     final int daysInMonth = DateTime(year, month + 1, 0).day;
 
-    // Dart's DateTime.weekday is Monday=1 ... Sunday=7.
-    // Convert to a Sunday-first index: Sunday=0 ... Saturday=6.
     final int startOffset = firstOfMonth.weekday % 7;
     final int totalCells = startOffset + daysInMonth;
     final int rowCount = (totalCells / 7).ceil();
@@ -200,7 +180,9 @@ class _MonthBox extends StatelessWidget {
               child: _DayCell(
                 day: currentDay,
                 isToday: _isToday(date),
+                hasReminder: highlightedDates.contains(date),
                 todayColor: todayColor,
+                dotColor: highlightColor,
                 dayNumberStyle: dayNumberStyle,
                 todayNumberStyle: todayNumberStyle,
                 todayCircleSize: todayCircleSize,
@@ -246,12 +228,15 @@ class _MonthBox extends StatelessWidget {
 }
 
 /// A single day number cell. Renders the solid red circular "today"
-/// indicator with white bold text when applicable.
+/// indicator with white bold text when applicable, plus a tiny purple dot
+/// beneath the number when [hasReminder] is true.
 class _DayCell extends StatelessWidget {
   const _DayCell({
     required this.day,
     required this.isToday,
+    required this.hasReminder,
     required this.todayColor,
+    required this.dotColor,
     this.dayNumberStyle,
     this.todayNumberStyle,
     this.todayCircleSize = 16,
@@ -260,7 +245,9 @@ class _DayCell extends StatelessWidget {
 
   final int day;
   final bool isToday;
+  final bool hasReminder;
   final Color todayColor;
+  final Color dotColor;
   final TextStyle? dayNumberStyle;
   final TextStyle? todayNumberStyle;
   final double todayCircleSize;
@@ -268,41 +255,57 @@ class _DayCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final Widget number = isToday
+        ? Container(
+      width: todayCircleSize,
+      height: todayCircleSize,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(color: todayColor, shape: BoxShape.circle),
+      child: Text(
+        '$day',
+        style: todayNumberStyle ??
+            const TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+              height: 1.0,
+            ),
+      ),
+    )
+        : Text(
+      '$day',
+      style: dayNumberStyle ??
+          const TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+            height: 1.0,
+          ),
+    );
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: AspectRatio(
         aspectRatio: 1,
         child: Center(
-          child: isToday
-              ? Container(
-            width: todayCircleSize,
-            height: todayCircleSize,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: todayColor,
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              '$day',
-              style: todayNumberStyle ??
-                  const TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                    height: 1.0,
-                  ),
-            ),
-          )
-              : Text(
-            '$day',
-            style: dayNumberStyle ??
-                const TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                  height: 1.0,
-                ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              number,
+              const SizedBox(height: 1),
+              SizedBox(
+                width: 3,
+                height: 3,
+                child: hasReminder
+                    ? DecoratedBox(
+                  decoration:
+                  BoxDecoration(color: dotColor, shape: BoxShape.circle),
+                )
+                    : null,
+              ),
+            ],
           ),
         ),
       ),

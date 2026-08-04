@@ -35,7 +35,11 @@ class _MainScreenState extends State<MainScreen> {
         title: Text('Reminders'),
       ),
       //
-      body: _pages[_currentIndex],
+      // main_screen.dart
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _pages,
+      ),
       //
       bottomNavigationBar: BottomAppBar(
         color: Colors.redAccent,
