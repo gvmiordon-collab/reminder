@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // 記得引入 intl package 處理日期格式
-import 'package:reminder/reminder/my_button.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import 'package:reminder/reminder/my_button.dart';
+import 'package:reminder/reminder/reminder_provider.dart';
 
 class DialogBox extends StatefulWidget {
   DialogBox({super.key});
@@ -11,22 +13,23 @@ class DialogBox extends StatefulWidget {
 }
 
 class _DialogBoxState extends State<DialogBox> {
+  final _formKey = GlobalKey<FormState>();
   final _todocontrollor = TextEditingController();
 
-  // 1. 用 DateTime 變數取代原本的 _datecontroller
   DateTime? _selectedDateTime;
+  bool _hasTime = false; // 揀咗「唔設時間」就係 false
+  bool _dateError = false; // 日期唔係 TextField,單獨用個 flag 控制紅框
 
   @override
   void dispose() {
     _todocontrollor.dispose();
-    // 移除了 _datecontroller.dispose()
     super.dispose();
   }
 
-  // 2. 處理文字顯示格式的邏輯
+  // 顯示格式,跟 _hasTime 決定使唔使加時間
   String get formattedText {
     if (_selectedDateTime == null) {
-      return "dealing (請選擇截止時間)"; // 預設的提示文字
+      return "dealing (請選擇截止時間)";
     }
 
     final now = DateTime.now();
@@ -38,20 +41,22 @@ class _DialogBoxState extends State<DialogBox> {
       _selectedDateTime!.day,
     );
 
-    final timeStr = DateFormat('H:mm').format(_selectedDateTime!);
-
+    String dayLabel;
     if (targetDate == today) {
-      return "Today, $timeStr";
+      dayLabel = "Today";
     } else if (targetDate == tomorrow) {
-      return "Tomorrow, $timeStr";
+      dayLabel = "Tomorrow";
     } else {
-      final dateStr = DateFormat('d MMM').format(_selectedDateTime!);
-      return "$dateStr, $timeStr";
+      dayLabel = DateFormat('d MMM').format(_selectedDateTime!);
     }
+
+    if (!_hasTime) return dayLabel; // 冇時間就淨顯示日期
+    final timeStr = DateFormat('H:mm').format(_selectedDateTime!);
+    return "$dayLabel, $timeStr";
   }
-// 3. 彈出日曆與時間選擇器的邏輯
+
   Future<void> _pickDateTime(BuildContext context) async {
-    // === 第一部分：保留原本的日曆選擇器 (完全無改動) ===
+    // === 第一部分:日曆選擇器(無改動)===
     final DateTime? pickedDate = await showDatePicker(
       context: context,
       initialDate: _selectedDateTime ?? DateTime.now(),
@@ -61,11 +66,11 @@ class _DialogBoxState extends State<DialogBox> {
 
     if (pickedDate == null) return;
 
-    // === 第二部分：改為置中的 iOS 風格滾輪時間選擇器 ===
-    final TimeOfDay? pickedTime = await showDialog<TimeOfDay>(
+    // === 第二部分:時間選擇器,加多一個「唔設時間」掣 ===
+    // 用 record 分辨 3 種結果:取消(null) / 唔設時間 / 揀咗時間
+    final result = await showDialog<({bool hasTime, TimeOfDay? time})>(
       context: context,
       builder: (BuildContext context) {
-        // 記錄滾輪當前的時間，預設為剛剛選中或現在的時間
         DateTime tempTime = _selectedDateTime ?? DateTime.now();
 
         return Dialog(
@@ -73,7 +78,7 @@ class _DialogBoxState extends State<DialogBox> {
             borderRadius: BorderRadius.circular(16.0),
           ),
           child: Container(
-            height: 300, // 控制對話框高度
+            height: 300,
             padding: const EdgeInsets.all(16.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -83,33 +88,36 @@ class _DialogBoxState extends State<DialogBox> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
-
-                // iOS 風格滾輪
                 Expanded(
                   child: CupertinoDatePicker(
                     mode: CupertinoDatePickerMode.time,
-                    use24hFormat: false, // false 代表會顯示 1-12 以及 AM/PM
+                    use24hFormat: false,
                     initialDateTime: tempTime,
                     onDateTimeChanged: (DateTime newDateTime) {
-                      tempTime = newDateTime; // 每次滾動更新時間
+                      tempTime = newDateTime;
                     },
                   ),
                 ),
-
                 const SizedBox(height: 16),
-                // 確定與取消按鈕
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: () => Navigator.pop(context), // 取消，回傳 null
+                      onPressed: () => Navigator.pop(context),
                       child: const Text('取消', style: TextStyle(color: Colors.grey)),
                     ),
                     TextButton(
-                      onPressed: () {
-                        // 將 Cupertino 揀到嘅 DateTime 轉做 TimeOfDay 傳返出去
-                        Navigator.pop(context, TimeOfDay.fromDateTime(tempTime));
-                      },
+                      onPressed: () => Navigator.pop(
+                        context,
+                        (hasTime: false, time: null),
+                      ),
+                      child: const Text('唔設時間', style: TextStyle(color: Colors.grey)),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(
+                        context,
+                        (hasTime: true, time: TimeOfDay.fromDateTime(tempTime)),
+                      ),
                       child: const Text('確定', style: TextStyle(color: Colors.blue)),
                     ),
                   ],
@@ -121,18 +129,41 @@ class _DialogBoxState extends State<DialogBox> {
       },
     );
 
-    if (pickedTime == null) return;
+    if (result == null) return; // 撳咗「取消」,乜都唔改
 
-    // === 第三部分：將選中的日期與時間合併 (完全無改動) ===
+    // === 第三部分:組合日期+時間(或者淨日期)===
     setState(() {
-      _selectedDateTime = DateTime(
-        pickedDate.year,
-        pickedDate.month,
-        pickedDate.day,
-        pickedTime.hour,
-        pickedTime.minute,
-      );
+      _hasTime = result.hasTime;
+      if (result.hasTime && result.time != null) {
+        _selectedDateTime = DateTime(
+          pickedDate.year,
+          pickedDate.month,
+          pickedDate.day,
+          result.time!.hour,
+          result.time!.minute,
+        );
+      } else {
+        _selectedDateTime = DateTime(pickedDate.year, pickedDate.month, pickedDate.day);
+      }
+      _dateError = false;
     });
+  }
+
+  void _handleConfirm() {
+    final isTitleValid = _formKey.currentState?.validate() ?? false;
+    final isDateValid = _selectedDateTime != null;
+
+    setState(() => _dateError = !isDateValid);
+
+    if (!isTitleValid || !isDateValid) return;
+
+    context.read<ReminderProvider>().addReminder(
+      title: _todocontrollor.text.trim(),
+      dueDate: _selectedDateTime!,
+      hasTime: _hasTime,
+    );
+
+    Navigator.pop(context);
   }
 
   @override
@@ -146,75 +177,98 @@ class _DialogBoxState extends State<DialogBox> {
           borderRadius: BorderRadius.circular(24),
         ),
         padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _todocontrollor,
-              decoration: const InputDecoration(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _todocontrollor,
+                decoration: const InputDecoration(
                   border: OutlineInputBorder(),
-                  hintText: 'what you want to do?'
-              ),
-            ),
-            const SizedBox(height: 12.0), // 稍微拉開一點距離
-
-            // ==========================================
-            // 4. 這裡取代了原本的 TextField
-            // ==========================================
-            InkWell(
-              onTap: () => _pickDateTime(context),
-              borderRadius: BorderRadius.circular(4), // 配合 OutlineInputBorder 的圓角
-              child: Container(
-                width: double.infinity, // 讓按鈕寬度跟上面的 TextField 一樣
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16), // 調整高度使其與 TextField 相若
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.black54), // 模仿 TextField 的邊框
-                  borderRadius: BorderRadius.circular(4),
-                  color: Colors.transparent,
+                  hintText: 'what you want to do?',
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_month,
-                      color: _selectedDateTime == null ? Colors.black54 : Colors.black87,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return '請輸入標題';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12.0),
+
+              // 日期/時間選擇按鈕,_dateError 時顯示紅框
+              InkWell(
+                onTap: () => _pickDateTime(context),
+                borderRadius: BorderRadius.circular(4),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: _dateError ? Colors.red : Colors.black54,
+                      width: _dateError ? 1.5 : 1.0,
                     ),
-                    const SizedBox(width: 12),
-                    Text(
-                      formattedText,
-                      style: TextStyle(
-                        fontSize: 16,
+                    borderRadius: BorderRadius.circular(4),
+                    color: Colors.transparent,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_month,
                         color: _selectedDateTime == null ? Colors.black54 : Colors.black87,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 12),
+                      Text(
+                        formattedText,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: _selectedDateTime == null ? Colors.black54 : Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            // ==========================================
-
-            const SizedBox(height: 16.0),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                MyButton(
-                    name: 'confirm',
-                    onPressed: () {
-                      // 當按下 confirm 時，你可以直接使用 _selectedDateTime
-                      // print('Task: ${_todocontrollor.text}, Deadline: $_selectedDateTime');
-                    },
-                    color: Colors.tealAccent
+              if (_dateError)
+                const Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '請選擇日期',
+                      style: TextStyle(color: Colors.red, fontSize: 12),
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 8.0),
-                MyButton(
+
+              const SizedBox(height: 16.0),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  MyButton(
+                    name: 'confirm',
+                    onPressed: _handleConfirm,
+                    color: Colors.tealAccent,
+                  ),
+                  const SizedBox(width: 8.0),
+                  MyButton(
                     name: 'cancel',
                     onPressed: () => Navigator.pop(context),
-                    color: Colors.orangeAccent
-                )
-              ],
-            )
-          ],
+                    color: Colors.orangeAccent,
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
+
+//  改咗啲乜:
+// _hasTime 由「唔設時間」掣控制,formattedText 同 database schema(hasTime)一致
+// TextField → TextFormField 包喺 Form 入面,標題空白會自動彈紅框+文字
+// 日期格用 _dateError 控制紅框,撳 confirm 先檢查
+// _handleConfirm 兩個都過先 call ReminderProvider.addReminder(...),然後關閉 dialog

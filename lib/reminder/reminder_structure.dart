@@ -33,7 +33,7 @@ class _ReminderStructureState extends State<ReminderStructure> {
           motion: StretchMotion(),
           children:[
             SlidableAction(
-              onPressed: null,
+              onPressed: (context) => widget.onDelete?.call(),
               icon: Icons.delete,
               backgroundColor: Colors.red,
             ),
@@ -44,7 +44,7 @@ class _ReminderStructureState extends State<ReminderStructure> {
           motion: BehindMotion(),
           children:[
             SlidableAction(
-              onPressed: null,
+              onPressed: (context) => widget.onCheck?.call(),
               icon: Icons.check,
               backgroundColor: Colors.lightGreenAccent,
             ),
