@@ -288,25 +288,20 @@ class _DayCell extends StatelessWidget {
       onTap: onTap,
       child: AspectRatio(
         aspectRatio: 1,
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              number,
-              const SizedBox(height: 1),
-              SizedBox(
-                width: 3,
-                height: 3,
-                child: hasReminder
-                    ? DecoratedBox(
-                  decoration:
-                  BoxDecoration(color: dotColor, shape: BoxShape.circle),
-                )
-                    : null,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            number,
+            if (hasReminder)
+              Align(
+                alignment: const Alignment(0, 0.85), // 貼近底部,唔佔額外高度
+                child: Container(
+                  width: 3,
+                  height: 3,
+                  decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+                ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );
