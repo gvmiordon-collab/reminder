@@ -31,8 +31,13 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        title: Text('Reminders'),
+        backgroundColor: Colors.redAccent[100],
+        title: Text(
+            'Reminders',
+        style: TextStyle(
+            color: Colors.white,
+        ),
+        ),
       ),
       //
       // main_screen.dart

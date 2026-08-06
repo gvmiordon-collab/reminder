@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 /// ```dart
 /// AppleYearCalendarView(
 ///   year: 2026,
-///   highlightedDates: provider.datesWithReminders,
+///   reminderDates: provider.datesWithReminders,
 ///   onMonthTapped: (month) => debugPrint('Tapped month $month'),
 ///   onDayTapped: (date) => debugPrint('Tapped day $date'),
 /// )
@@ -31,8 +31,8 @@ class AppleYearCalendarView extends StatelessWidget {
     this.todayCircleSize = 16,
     this.mainAxisSpacing = 22,
     this.crossAxisSpacing = 10,
-    this.highlightedDates = const <DateTime>{},
-    this.highlightColor = const Color(0xFFAF52DE), // iOS systemPurple
+    this.reminderDates = const <DateTime>{},
+    this.reminderDotColor = const Color(0xFFAF52DE), // iOS systemPurple
   });
 
   final int year;
@@ -52,10 +52,10 @@ class AppleYearCalendarView extends StatelessWidget {
 
   /// Dates (day-only) that should show a tiny purple dot beneath the day
   /// number, indicating a reminder is due that day.
-  final Set<DateTime> highlightedDates;
+  final Set<DateTime> reminderDates;
 
   /// Color of the reminder-indicator dot. Defaults to iOS systemPurple.
-  final Color highlightColor;
+  final Color reminderDotColor;
 
   static const List<String> _monthAbbreviations = <String>[
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -100,8 +100,8 @@ class AppleYearCalendarView extends StatelessWidget {
                   today: today,
                   monthLabel: _monthAbbreviations[index],
                   todayColor: todayColor,
-                  highlightedDates: highlightedDates,
-                  highlightColor: highlightColor,
+                  reminderDates: reminderDates,
+                  reminderDotColor: reminderDotColor,
                   monthLabelStyle: monthLabelStyle,
                   dayNumberStyle: dayNumberStyle,
                   todayNumberStyle: todayNumberStyle,
@@ -125,8 +125,8 @@ class _MonthBox extends StatelessWidget {
     required this.today,
     required this.monthLabel,
     required this.todayColor,
-    required this.highlightedDates,
-    required this.highlightColor,
+    required this.reminderDates,
+    required this.reminderDotColor,
     this.monthLabelStyle,
     this.dayNumberStyle,
     this.todayNumberStyle,
@@ -140,8 +140,8 @@ class _MonthBox extends StatelessWidget {
   final DateTime today;
   final String monthLabel;
   final Color todayColor;
-  final Set<DateTime> highlightedDates;
-  final Color highlightColor;
+  final Set<DateTime> reminderDates;
+  final Color reminderDotColor;
   final TextStyle? monthLabelStyle;
   final TextStyle? dayNumberStyle;
   final TextStyle? todayNumberStyle;
@@ -180,9 +180,9 @@ class _MonthBox extends StatelessWidget {
               child: _DayCell(
                 day: currentDay,
                 isToday: _isToday(date),
-                hasReminder: highlightedDates.contains(date),
+                hasReminder: reminderDates.contains(date),
                 todayColor: todayColor,
-                dotColor: highlightColor,
+                dotColor: reminderDotColor,
                 dayNumberStyle: dayNumberStyle,
                 todayNumberStyle: todayNumberStyle,
                 todayCircleSize: todayCircleSize,
