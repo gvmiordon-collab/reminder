@@ -42,6 +42,8 @@ class AppleMonthView extends StatelessWidget {
     this.showLeadingTrailingDays = true,
     this.highlightedDates = const <DateTime>{},
     this.highlightColor = const Color(0xFFAF52DE), // iOS systemPurple
+    this.reminderDates = const <DateTime>{},
+    this.reminderHighlightColor = const Color(0xFFEDE7F9), // 淡紫色
   });
 
   /// The year of the month being displayed (e.g. 2026).
@@ -100,6 +102,13 @@ class AppleMonthView extends StatelessWidget {
 
   /// Color of the reminder-indicator dot. Defaults to iOS systemPurple.
   final Color highlightColor;
+
+  /// 有 reminder 嘅日子（只計日期，唔計時間），呢啲日子個格仔會用
+  /// [reminderHighlightColor] 填色 highlight。
+  final Set<DateTime> reminderDates;
+
+  /// Highlight 「有 reminder」嗰日嘅 background 顏色。
+  final Color reminderHighlightColor;
 
   static const List<String> _monthNames = <String>[
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -222,10 +231,12 @@ class AppleMonthView extends StatelessWidget {
                             isToday: isToday,
                             isSelected: isSelected,
                             inCurrentMonth: info.inCurrentMonth,
-                            hasReminder: hasReminder,
                             todayColor: todayColor,
                             selectedColor: selectedColor,
-                            dotColor: highlightColor,
+                            hasReminder: reminderDates.contains(
+                              DateTime(info.date.year, info.date.month, info.date.day),
+                            ),
+                            reminderHighlightColor: reminderHighlightColor,
                             dayNumberStyle: dayNumberStyle,
                             todayNumberStyle: todayNumberStyle,
                             selectedNumberStyle: selectedNumberStyle,
@@ -264,10 +275,10 @@ class _MonthDayCell extends StatelessWidget {
     required this.isToday,
     required this.isSelected,
     required this.inCurrentMonth,
-    required this.hasReminder,
     required this.todayColor,
     required this.selectedColor,
-    required this.dotColor,
+    required this.hasReminder,
+    required this.reminderHighlightColor,
     this.dayNumberStyle,
     this.todayNumberStyle,
     this.selectedNumberStyle,
@@ -279,10 +290,10 @@ class _MonthDayCell extends StatelessWidget {
   final bool isToday;
   final bool isSelected;
   final bool inCurrentMonth;
-  final bool hasReminder;
   final Color todayColor;
   final Color selectedColor;
-  final Color dotColor;
+  final bool hasReminder;
+  final Color reminderHighlightColor;
   final TextStyle? dayNumberStyle;
   final TextStyle? todayNumberStyle;
   final TextStyle? selectedNumberStyle;
@@ -337,30 +348,25 @@ class _MonthDayCell extends StatelessWidget {
       );
     }
 
+    Widget content = Center(child: number);
+
+    // 有 reminder 嘅日子,個格仔用淡紫色 rounded rect 填底,
+    // today/selected 嘅紅圈/灰圈照舊喺上面顯示。
+    if (hasReminder) {
+      content = Container(
+        margin: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: reminderHighlightColor,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: content,
+      );
+    }
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            number,
-            const SizedBox(height: 3),
-            // 固定留位,唔理有冇 reminder 都佔緊呢行高度,咁行與行之間先對得齊
-            SizedBox(
-              width: 5,
-              height: 5,
-              child: hasReminder
-                  ? DecoratedBox(
-                decoration:
-                BoxDecoration(color: dotColor, shape: BoxShape.circle),
-              )
-                  : null,
-            ),
-          ],
-        ),
-      ),
+      child: content,
     );
   }
 }

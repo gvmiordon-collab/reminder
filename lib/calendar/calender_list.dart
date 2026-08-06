@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:reminder/reminder/reminder_model.dart';
 import 'package:reminder/reminder/reminder_provider.dart';
 import 'apple_year_calendar_view.dart';
 import 'apple_month_view.dart';
@@ -52,13 +53,7 @@ class _CalenderListState extends State<CalenderList> {
       _selectedMonth = date.month;
       _selectedYear = date.year;
     });
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => DayRemindersSheet(date: date),
-    );
+    _showDayRemindersSheet(date);
   }
 
   void _handleMonthTapped(int month) {
@@ -68,10 +63,28 @@ class _CalenderListState extends State<CalenderList> {
     });
   }
 
+  void _showDayRemindersSheet(DateTime date) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => DayRemindersSheet(date: date),
+    );
+  }
+
+  Set<DateTime> _reminderDatesFrom(List<Reminder> reminders) {
+    return reminders
+        .map((r) => DateTime(r.dueDate.year, r.dueDate.month, r.dueDate.day))
+        .toSet();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final Set<DateTime> highlightedDates =
-        context.watch<ReminderProvider>().datesWithReminders;
+    // 淨係讀 reminders 嚟計邊日要 highlight,冇任何 DB/business logic 喺呢層。
+    final reminders = context.watch<ReminderProvider>().reminders;
+    final reminderDates = _reminderDatesFrom(reminders);
 
     if (_mode == _CalendarMode.year) {
       return Column(
@@ -95,10 +108,9 @@ class _CalenderListState extends State<CalenderList> {
           Expanded(
             child: AppleYearCalendarView(
               year: _selectedYear,
-              highlightedDates: highlightedDates,
+              reminderDates: reminderDates,
               onMonthTapped: _handleMonthTapped,
               onDayTapped: (date) {
-                // 撳年視圖入面某一日 = 跳返月視圖睇該月,暫時未喺呢度彈 bottom sheet
                 setState(() {
                   _selectedMonth = date.month;
                   _selectedYear = date.year;
@@ -116,7 +128,7 @@ class _CalenderListState extends State<CalenderList> {
       year: _selectedYear,
       month: _selectedMonth,
       selectedDate: _selectedDate,
-      highlightedDates: highlightedDates,
+      reminderDates: reminderDates,
       onDayTapped: _handleDayTapped,
       onPreviousMonth: _goToPreviousMonth,
       onNextMonth: _goToNextMonth,
