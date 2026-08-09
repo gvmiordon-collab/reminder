@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:reminder/main_screen.dart';
 import 'package:reminder/reminder/reminder_provider.dart';
+import 'package:reminder/notifications/notification_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // runApp 之前用 plugin 一定要先行呢句
+  await NotificationService.instance.init();
   runApp(const Reminder());
 }
 

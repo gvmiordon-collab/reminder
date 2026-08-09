@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../notifications/notification_service.dart';
 import 'reminder_database.dart';
 import 'reminder_model.dart';
 
@@ -10,7 +11,6 @@ class ReminderProvider extends ChangeNotifier {
 
   List<Reminder> get reminders => _reminders;
 
-  /// App 開機 / Provider 建立嗰陣 call 一次:讀資料 + purge overdue(MVP,已確認唔加 timer)
   Future<void> load() async {
     isLoading = true;
     notifyListeners();
@@ -19,10 +19,21 @@ class ReminderProvider extends ChangeNotifier {
 
     final overdue = all.where((r) => r.isOverdue);
     for (final r in overdue) {
-      if (r.id != null) await _db.deleteReminder(r.id!);
+      if (r.id != null) {
+        await _db.deleteReminder(r.id!);
+        await NotificationService.instance.cancelForReminder(r.id!);
+      }
     }
 
     _reminders = all.where((r) => !r.isOverdue).toList();
+
+    // 每次開機都重新排晒全部 active reminder 嘅通知——就算之前啲通知因為
+    // 裝置重開/App 更新/重裝甩咗,呢度都會自動補返晒(冪等操作)。
+    for (final r in _reminders) {
+      await NotificationService.instance.scheduleForReminder(r);
+    }
+    await NotificationService.instance.recomputeDenseSchedule(_reminders);
+
     isLoading = false;
     notifyListeners();
   }
@@ -42,26 +53,28 @@ class ReminderProvider extends ChangeNotifier {
     ));
     _reminders = [..._reminders, inserted]
       ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+
+    await NotificationService.instance.scheduleForReminder(inserted);
+    await NotificationService.instance.recomputeDenseSchedule(_reminders);
+
     notifyListeners();
   }
 
-  /// check 同 delete 兩個掣底層都係呢個 function(已確認:完成 = 刪除)
+  /// check 同 delete 兩個掣底層都係呢個 function(完成 = 刪除)
   Future<void> removeReminder(int id) async {
     await _db.deleteReminder(id);
+    await NotificationService.instance.cancelForReminder(id);
     _reminders = _reminders.where((r) => r.id != id).toList();
+    await NotificationService.instance.recomputeDenseSchedule(_reminders);
     notifyListeners();
   }
 
-  // reminder_provider.dart 新增
-
-  /// 俾 Calendar 畫紫色 highlight 用：淨日期(冇時間)嘅 set
   Set<DateTime> get datesWithReminders {
     return _reminders
         .map((r) => DateTime(r.dueDate.year, r.dueDate.month, r.dueDate.day))
         .toSet();
   }
 
-  /// 俾 bottom sheet 用：攞返指定一日嘅全部 reminder，跟 dueDate 排好序
   List<Reminder> remindersOnDay(DateTime day) {
     return _reminders.where((r) =>
     r.dueDate.year == day.year &&
@@ -69,8 +82,4 @@ class ReminderProvider extends ChangeNotifier {
         r.dueDate.day == day.day).toList()
       ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
   }
-
-
-
-
 }
