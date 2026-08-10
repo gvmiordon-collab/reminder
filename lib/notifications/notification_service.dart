@@ -37,7 +37,7 @@ class NotificationService {
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosInit = DarwinInitializationSettings();
     await _plugin.initialize(
-      const InitializationSettings(android: androidInit, iOS: iosInit),
+      settings: const InitializationSettings(android: androidInit, iOS: iosInit),
       onDidReceiveNotificationResponse: (response) {
         // Gordon 已確認:撳咗通知一律跳去 list 頁。
         requestedTabIndex.value = 0;
@@ -45,8 +45,7 @@ class NotificationService {
     );
 
     if (Platform.isAndroid) {
-      final androidPlugin = _plugin.resolvePlatformSpecificImplementation
-      AndroidFlutterLocalNotificationsPlugin>();
+      final androidPlugin = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
       await androidPlugin?.createNotificationChannel(const AndroidNotificationChannel(
         _milestoneChannelId,
         _milestoneChannelName,
@@ -67,26 +66,22 @@ class NotificationService {
 
   Future<bool> requestPermissions() async {
     if (!Platform.isAndroid) {
-      final iosPlugin = _plugin.resolvePlatformSpecificImplementation
-      IOSFlutterLocalNotificationsPlugin>();
+      final iosPlugin = _plugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
       return await iosPlugin?.requestPermissions(alert: true, badge: true, sound: true) ?? false;
     }
-    final androidPlugin = _plugin.resolvePlatformSpecificImplementation
-    AndroidFlutterLocalNotificationsPlugin>();
+    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     return await androidPlugin?.requestNotificationsPermission() ?? false;
   }
 
   Future<bool> needsExactAlarmSettingsPrompt() async {
     if (!Platform.isAndroid) return false;
-    final androidPlugin = _plugin.resolvePlatformSpecificImplementation
-    AndroidFlutterLocalNotificationsPlugin>();
+    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     final canSchedule = await androidPlugin?.canScheduleExactNotifications();
     return canSchedule == false;
   }
 
   Future<void> openExactAlarmSettings() async {
-    final androidPlugin = _plugin.resolvePlatformSpecificImplementation
-    AndroidFlutterLocalNotificationsPlugin>();
+    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     await androidPlugin?.requestExactAlarmsPermission();
   }
 
@@ -110,7 +105,7 @@ class NotificationService {
 
     for (final tier in milestones.keys) {
       final id = NotificationTier.milestoneNotificationId(reminder.id!, tier);
-      await _plugin.cancel(id); // 先清舊嘅,改咗期都唔會有幽靈通知
+      await _plugin.cancel(id: id); // 先清舊嘅,改咗期都唔會有幽靈通知
       final fireTime = milestones[tier]!;
       if (!fireTime.isAfter(now)) continue; // 已經過咗嘅時間點,唔使再排
 
@@ -122,11 +117,11 @@ class NotificationService {
       };
 
       await _plugin.zonedSchedule(
-        id,
-        texts.title,
-        texts.body,
-        tz.TZDateTime.from(fireTime, tz.local),
-        const NotificationDetails(
+        id: id,
+        title: texts.title,
+        body: texts.body,
+        scheduledDate: tz.TZDateTime.from(fireTime, tz.local),
+        notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
             _milestoneChannelId,
             _milestoneChannelName,
@@ -148,7 +143,7 @@ class NotificationService {
       NotificationTier.day1,
       NotificationTier.dayOf,
     ]) {
-      await _plugin.cancel(NotificationTier.milestoneNotificationId(reminderId, tier));
+      await _plugin.cancel(id: NotificationTier.milestoneNotificationId(reminderId, tier));
     }
   }
 

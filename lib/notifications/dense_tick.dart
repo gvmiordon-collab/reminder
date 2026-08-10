@@ -23,7 +23,9 @@ bool _inDenseWindow(Reminder r, DateTime now) {
 Future<void> refreshDenseNotification() async {
   final plugin = FlutterLocalNotificationsPlugin();
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-  await plugin.initialize(const InitializationSettings(android: androidInit));
+  await plugin.initialize(
+    settings: const InitializationSettings(android: androidInit),
+  );
 
   final now = DateTime.now();
   final all = await ReminderDatabase.instance.getAllReminders();
@@ -31,7 +33,7 @@ Future<void> refreshDenseNotification() async {
     ..sort((a, b) => _effectiveDeadline(a).compareTo(_effectiveDeadline(b)));
 
   if (active.isEmpty) {
-    await plugin.cancel(denseNotificationId);
+    await plugin.cancel(id: denseNotificationId);
     return;
   }
 
@@ -43,16 +45,15 @@ Future<void> refreshDenseNotification() async {
   );
 
   await plugin.show(
-    denseNotificationId,
-    texts.title,
-    texts.body,
-    const NotificationDetails(
+    id: denseNotificationId,
+    title: texts.title,
+    body: texts.body,
+    notificationDetails: const NotificationDetails(
       android: AndroidNotificationDetails(
         denseChannelId,
         denseChannelName,
         importance: Importance.max,
         priority: Priority.high,
-        // Gordon 已確認:dense tier 次次都要震/出聲,唔好加 onlyAlertOnce。
       ),
     ),
     payload: 'reminder:${target.id}',
