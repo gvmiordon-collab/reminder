@@ -1,3 +1,5 @@
+// lib/calendar/calender_list.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:reminder/reminder/reminder_model.dart';
@@ -18,48 +20,127 @@ class CalenderList extends StatefulWidget {
 class _CalenderListState extends State<CalenderList> {
   _CalendarMode _mode = _CalendarMode.month;
 
-  late int _selectedYear = DateTime.now().year;
-  late int _selectedMonth = DateTime.now().month;
+  // === Swipe 分頁機制 ===
+  // Month/Year 各自一個 PageController,page index 同實際月/年嘅
+  // 對應關係:page = _pageMiddle + (距離 anchor 幾多個月/年)。
+  // anchor 淨係喺 initState 攞一次(建立嗰陣嘅「而家」),之後全程唔變;
+  // _pageMiddle 揀一個好大嘅起始頁,等使用者可以隨便向前向後掃(月曆
+  // 大概 500 年、年曆 6000 年),一個 reminder app 用嚟講已經用唔晒。
+  static const int _pageMiddle = 6000;
+
+  late final DateTime _monthAnchor;
+  late final PageController _monthPageController;
+  int _monthPageIndex = _pageMiddle;
+
+  late final int _yearAnchor;
+  late final PageController _yearPageController;
+  int _yearPageIndex = _pageMiddle;
+
   DateTime? _selectedDate;
 
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _monthAnchor = DateTime(now.year, now.month);
+    _monthPageController = PageController(initialPage: _pageMiddle);
+    _yearAnchor = now.year;
+    _yearPageController = PageController(initialPage: _pageMiddle);
+  }
+
+  @override
+  void dispose() {
+    _monthPageController.dispose();
+    _yearPageController.dispose();
+    super.dispose();
+  }
+
+  DateTime _dateForMonthPage(int page) {
+    final offset = page - _pageMiddle;
+    return DateTime(_monthAnchor.year, _monthAnchor.month + offset);
+  }
+
+  int _pageForMonth(DateTime date) {
+    return _pageMiddle +
+        (date.year - _monthAnchor.year) * 12 +
+        (date.month - _monthAnchor.month);
+  }
+
+  int _yearForPage(int page) => _yearAnchor + (page - _pageMiddle);
+
+  int _pageForYear(int year) => _pageMiddle + (year - _yearAnchor);
+
   void _goToPreviousMonth() {
-    setState(() {
-      if (_selectedMonth == 1) {
-        _selectedMonth = 12;
-        _selectedYear--;
-      } else {
-        _selectedMonth--;
-      }
-    });
+    _monthPageController.previousPage(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
   }
 
   void _goToNextMonth() {
-    setState(() {
-      if (_selectedMonth == 12) {
-        _selectedMonth = 1;
-        _selectedYear++;
-      } else {
-        _selectedMonth++;
-      }
-    });
+    _monthPageController.nextPage(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
   }
 
-  void _goToPreviousYear() => setState(() => _selectedYear--);
-  void _goToNextYear() => setState(() => _selectedYear++);
+  void _goToPreviousYear() {
+    _yearPageController.previousPage(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+  }
 
+  void _goToNextYear() {
+    _yearPageController.nextPage(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+  }
+
+  // 撳月曆入面淡色嘅上/下個月日子:淨係差 1 個月,當佢係「撳咗
+  // chevron」處理,有動畫,同手指滑嗰種順滑感覺一致。
   void _handleDayTapped(DateTime date) {
-    setState(() {
-      _selectedDate = date;
-      _selectedMonth = date.month;
-      _selectedYear = date.year;
-    });
+    final currentMonth = _dateForMonthPage(_monthPageIndex);
+    final tappedMonth = DateTime(date.year, date.month);
+    if (tappedMonth.isBefore(currentMonth)) {
+      _goToPreviousMonth();
+    } else if (tappedMonth.isAfter(currentMonth)) {
+      _goToNextMonth();
+    }
+    setState(() => _selectedDate = date);
     _showDayRemindersSheet(date);
   }
 
+  // 年曆撳月份標籤 / 撳日子跳去月曆:距離可以好遠(例如成十年),
+  // 用 jumpToPage 即刻跳,唔做動畫。
   void _handleMonthTapped(int month) {
+    final targetYear = _yearForPage(_yearPageIndex);
+    final targetPage = _pageForMonth(DateTime(targetYear, month));
+    _monthPageController.jumpToPage(targetPage);
     setState(() {
-      _selectedMonth = month;
+      _monthPageIndex = targetPage;
       _mode = _CalendarMode.month;
+    });
+  }
+
+  void _handleYearViewDayTapped(DateTime date) {
+    final targetPage = _pageForMonth(date);
+    _monthPageController.jumpToPage(targetPage);
+    setState(() {
+      _monthPageIndex = targetPage;
+      _selectedDate = date;
+      _mode = _CalendarMode.month;
+    });
+  }
+
+  void _handleTitleTapped() {
+    final currentYear = _dateForMonthPage(_monthPageIndex).year;
+    final targetPage = _pageForYear(currentYear);
+    _yearPageController.jumpToPage(targetPage);
+    setState(() {
+      _yearPageIndex = targetPage;
+      _mode = _CalendarMode.year;
     });
   }
 
@@ -86,53 +167,42 @@ class _CalenderListState extends State<CalenderList> {
     final reminders = context.watch<ReminderProvider>().reminders;
     final reminderDates = _reminderDatesFrom(reminders);
 
-    if (_mode == _CalendarMode.year) {
-      return Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  onPressed: _goToPreviousYear,
-                  icon: const Icon(Icons.chevron_left),
-                ),
-                IconButton(
-                  onPressed: _goToNextYear,
-                  icon: const Icon(Icons.chevron_right),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: AppleYearCalendarView(
-              year: _selectedYear,
+    return IndexedStack(
+      index: _mode == _CalendarMode.month ? 0 : 1,
+      children: [
+        PageView.builder(
+          controller: _monthPageController,
+          onPageChanged: (index) => setState(() => _monthPageIndex = index),
+          itemBuilder: (context, index) {
+            final monthDate = _dateForMonthPage(index);
+            return AppleMonthView(
+              year: monthDate.year,
+              month: monthDate.month,
+              selectedDate: _selectedDate,
+              reminderDates: reminderDates,
+              onDayTapped: _handleDayTapped,
+              onPreviousMonth: _goToPreviousMonth,
+              onNextMonth: _goToNextMonth,
+              onTitleTapped: _handleTitleTapped,
+            );
+          },
+        ),
+        PageView.builder(
+          controller: _yearPageController,
+          onPageChanged: (index) => setState(() => _yearPageIndex = index),
+          itemBuilder: (context, index) {
+            final year = _yearForPage(index);
+            return AppleYearCalendarView(
+              year: year,
               reminderDates: reminderDates,
               onMonthTapped: _handleMonthTapped,
-              onDayTapped: (date) {
-                setState(() {
-                  _selectedMonth = date.month;
-                  _selectedYear = date.year;
-                  _selectedDate = date;
-                  _mode = _CalendarMode.month;
-                });
-              },
-            ),
-          ),
-        ],
-      );
-    }
-
-    return AppleMonthView(
-      year: _selectedYear,
-      month: _selectedMonth,
-      selectedDate: _selectedDate,
-      reminderDates: reminderDates,
-      onDayTapped: _handleDayTapped,
-      onPreviousMonth: _goToPreviousMonth,
-      onNextMonth: _goToNextMonth,
-      onTitleTapped: () => setState(() => _mode = _CalendarMode.year),
+              onPreviousYear: _goToPreviousYear,
+              onNextYear: _goToNextYear,
+              onDayTapped: _handleYearViewDayTapped,
+            );
+          },
+        ),
+      ],
     );
   }
 }

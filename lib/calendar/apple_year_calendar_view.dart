@@ -20,6 +20,8 @@ class AppleYearCalendarView extends StatelessWidget {
     required this.year,
     this.onMonthTapped,
     this.onDayTapped,
+    this.onPreviousYear,   // 新增
+    this.onNextYear,       // 新增
     this.todayColor = const Color(0xFFFF3B30), // iOS systemRed
     this.backgroundColor = Colors.white,
     this.showYearHeader = true,
@@ -38,6 +40,8 @@ class AppleYearCalendarView extends StatelessWidget {
   final int year;
   final ValueChanged<int>? onMonthTapped;
   final ValueChanged<DateTime>? onDayTapped;
+  final VoidCallback? onPreviousYear;  // 新增
+  final VoidCallback? onNextYear;      // 新增
   final Color todayColor;
   final Color backgroundColor;
   final bool showYearHeader;
@@ -73,21 +77,36 @@ class AppleYearCalendarView extends StatelessWidget {
         children: [
           if (showYearHeader)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Text(
-                '$year',
-                style: yearHeaderStyle ??
-                    const TextStyle(
-                      fontSize: 34,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                      letterSpacing: -0.5,
+              padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left),
+                    onPressed: onPreviousYear,
+                  ),
+                  Expanded(
+                    child: Text(
+                      '$year',
+                      textAlign: TextAlign.center,
+                      style: yearHeaderStyle ??
+                          const TextStyle(
+                            fontSize: 34,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                            letterSpacing: -0.5,
+                          ),
                     ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right),
+                    onPressed: onNextYear,
+                  ),
+                ],
               ),
             ),
           Expanded(
             child: GridView.count(
-              crossAxisCount: 3,
+              crossAxisCount: 2,
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
               mainAxisSpacing: mainAxisSpacing,
               crossAxisSpacing: crossAxisSpacing,
