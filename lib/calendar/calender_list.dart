@@ -1,5 +1,5 @@
 // lib/calendar/calender_list.dart
-
+import 'calendar_icon_command.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:reminder/reminder/reminder_model.dart';
@@ -41,6 +41,7 @@ class _CalenderListState extends State<CalenderList> {
   @override
   void initState() {
     super.initState();
+    calendarIconCommand.addListener(_handleCalendarIconCommand); // 新增
     final now = DateTime.now();
     _monthAnchor = DateTime(now.year, now.month);
     _monthPageController = PageController(initialPage: _pageMiddle);
@@ -50,6 +51,7 @@ class _CalenderListState extends State<CalenderList> {
 
   @override
   void dispose() {
+    calendarIconCommand.removeListener(_handleCalendarIconCommand); // 新增
     _monthPageController.dispose();
     _yearPageController.dispose();
     super.dispose();
@@ -143,6 +145,36 @@ class _CalenderListState extends State<CalenderList> {
       _mode = _CalendarMode.year;
     });
   }
+
+
+  // 處理 MainScreen 個 calendar icon 掣傳落嚟嘅指令
+// (見 calendar_icon_command.dart):reset 或者 toggle month/year。
+  void _handleCalendarIconCommand() {
+    final cmd = calendarIconCommand.value;
+    if (cmd == null) return;
+
+    switch (cmd.command) {
+      case CalendarIconCommand.resetToMonth:
+        setState(() => _mode = _CalendarMode.month);
+        break;
+      case CalendarIconCommand.toggleMonthYear:
+        if (_mode == _CalendarMode.month) {
+          // 同 _handleTitleTapped 一樣邏輯:轉去 year view 之前,
+          // 令 year page 同而家顯示緊嗰個月份嘅年份對得上。
+          final currentYear = _dateForMonthPage(_monthPageIndex).year;
+          final targetPage = _pageForYear(currentYear);
+          _yearPageController.jumpToPage(targetPage);
+          setState(() {
+            _yearPageIndex = targetPage;
+            _mode = _CalendarMode.year;
+          });
+        } else {
+          setState(() => _mode = _CalendarMode.month);
+        }
+        break;
+    }
+  }
+
 
   void _showDayRemindersSheet(DateTime date) {
     showModalBottomSheet(

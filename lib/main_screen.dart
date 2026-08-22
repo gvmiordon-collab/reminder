@@ -4,6 +4,7 @@ import 'package:reminder/calendar/calender.dart';
 import 'package:reminder/reminder/reminders_pages.dart';
 import 'package:reminder/notifications/notification_permission_gate.dart';
 import 'package:reminder/notifications/tab_notifier.dart';
+import 'package:reminder/calendar/calendar_icon_command.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -70,7 +71,14 @@ class _MainScreenState extends State<MainScreen> {
             ),
             SizedBox(width: 40),
             IconButton(
-              onPressed: () => setState(() => _currentIndex = 1),
+              onPressed: () {
+                if (_currentIndex == 1) {
+                  calendarIconCommand.send(CalendarIconCommand.toggleMonthYear);
+                } else {
+                  setState(() => _currentIndex = 1);
+                  calendarIconCommand.send(CalendarIconCommand.resetToMonth);
+                }
+              },
               icon: Icon(Icons.calendar_month, color: _currentIndex == 1 ? Colors.yellow : Colors.white),
             ),
           ],
