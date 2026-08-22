@@ -48,6 +48,16 @@ class ReminderDatabase {
     );
   }
 
+  Future<void> updateReminder(Reminder reminder) async {
+    final db = await _database;
+    await db.update(
+      'reminders',
+      reminder.toMap(),
+      where: 'id = ?',
+      whereArgs: [reminder.id],
+    );
+  }
+
   Future<List<Reminder>> getAllReminders() async {
     final db = await _database;
     final maps = await db.query('reminders', orderBy: 'dueDate ASC');

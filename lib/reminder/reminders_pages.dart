@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'reminder_provider.dart';
 import 'reminder_structure.dart';
+import 'dialog_box.dart';
 
 class RemindersPages extends StatelessWidget {
   const RemindersPages({super.key});
@@ -26,6 +27,10 @@ class RemindersPages extends StatelessWidget {
               date: reminder.displayText,
               onCheck: () => provider.removeReminder(reminder.id!),
               onDelete: () => provider.removeReminder(reminder.id!),
+              onEdit: () => showDialog(
+                  context: context,
+                  builder: (context) => DialogBox(existingReminder: reminder,)
+              ),
             );
           },
         );

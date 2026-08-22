@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:reminder/reminder/reminder_provider.dart';
 import 'package:reminder/reminder/reminder_structure.dart';
+import 'package:reminder/reminder/dialog_box.dart';
 
 /// 撳日子彈出嘅 bottom sheet:顯示嗰日嘅 reminder list,
 /// 可以直接 slide check/delete —— 同主 Reminders tab 一樣嘅操作,
@@ -72,6 +73,11 @@ class DayRemindersSheet extends StatelessWidget {
                               provider.removeReminder(reminder.id!),
                           onDelete: () =>
                               provider.removeReminder(reminder.id!),
+                          onEdit: () => showDialog(
+                            context: context,
+                            builder: (context) =>
+                                DialogBox(existingReminder: reminder),
+                          ),
                         );
                       },
                     ),

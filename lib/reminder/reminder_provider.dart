@@ -60,6 +60,41 @@ class ReminderProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 編輯已有 reminder:title/dueDate/hasTime 可以改,createdAt 唔變,
+  /// updatedAt 更新做而家。改完要 cancel 舊通知、用新資料重新排過,
+  /// 再 recompute 一次 dense schedule(同 add/remove 嗰套邏輯一致)。
+  Future<void> editReminder({
+    required int id,
+    required String title,
+    required DateTime dueDate,
+    required bool hasTime,
+  }) async {
+    final index = _reminders.indexWhere((r) => r.id == id);
+    if (index == -1) return; // 保險:揾唔到就乜都唔做
+
+    final existing = _reminders[index];
+    final updated = Reminder(
+      id: id,
+      title: title,
+      dueDate: dueDate,
+      hasTime: hasTime,
+      createdAt: existing.createdAt,
+      updatedAt: DateTime.now(),
+    );
+
+    await _db.updateReminder(updated);
+    await NotificationService.instance.cancelForReminder(id);
+
+    _reminders = [
+      for (final r in _reminders) if (r.id == id) updated else r,
+    ]..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+
+    await NotificationService.instance.scheduleForReminder(updated);
+    await NotificationService.instance.recomputeDenseSchedule(_reminders);
+
+    notifyListeners();
+  }
+
   /// check 同 delete 兩個掣底層都係呢個 function(完成 = 刪除)
   Future<void> removeReminder(int id) async {
     await _db.deleteReminder(id);

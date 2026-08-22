@@ -8,6 +8,7 @@ class ReminderStructure extends StatefulWidget {
   final String date;  //暫時用文字先
   final VoidCallback? onDelete;
   final VoidCallback? onCheck;
+  final VoidCallback? onEdit; // 長按觸發:入編輯模式
 
   const ReminderStructure({
     super.key,
@@ -15,6 +16,7 @@ class ReminderStructure extends StatefulWidget {
     required this.date,
     this.onCheck,
     this.onDelete,
+    this.onEdit,
   });
 
 
@@ -51,35 +53,39 @@ class _ReminderStructureState extends State<ReminderStructure> {
           ],
         ),
 
-        child: Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Colors.orange[100],
-            borderRadius: BorderRadius.circular(24),
-          ),
-          padding: EdgeInsets.all(24),
-          child: Column(  ///
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.todo ,
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
+
+        child: GestureDetector(
+          onLongPress: widget.onEdit,
+          child: Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.orange[100],
+              borderRadius: BorderRadius.circular(24),
+            ),
+            padding: EdgeInsets.all(24),
+            child: Column(  ///
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.todo ,
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              //
-              const SizedBox(height: 8),
-              //
-              Text(
-                widget.date,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[700],
+                //
+                const SizedBox(height: 8),
+                //
+                Text(
+                  widget.date,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[700],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

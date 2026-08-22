@@ -4,9 +4,13 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:reminder/reminder/my_button.dart';
 import 'package:reminder/reminder/reminder_provider.dart';
+import 'package:reminder/reminder/reminder_model.dart';
+
 
 class DialogBox extends StatefulWidget {
-  DialogBox({super.key});
+  final Reminder? existingReminder; // 有傳入就係編輯模式,冇就係新增
+
+  DialogBox({super.key, this.existingReminder});
 
   @override
   State<DialogBox> createState() => _DialogBoxState();
@@ -19,6 +23,17 @@ class _DialogBoxState extends State<DialogBox> {
   DateTime? _selectedDateTime;
   bool _hasTime = false; // 揀咗「唔設時間」就係 false
   bool _dateError = false; // 日期唔係 TextField,單獨用個 flag 控制紅框
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existingReminder;
+    if (existing != null) {
+      _todocontrollor.text = existing.title;
+      _selectedDateTime = existing.dueDate;
+      _hasTime = existing.hasTime;
+    }
+  }
 
   @override
   void dispose() {
@@ -157,11 +172,21 @@ class _DialogBoxState extends State<DialogBox> {
 
     if (!isTitleValid || !isDateValid) return;
 
-    context.read<ReminderProvider>().addReminder(
-      title: _todocontrollor.text.trim(),
-      dueDate: _selectedDateTime!,
-      hasTime: _hasTime,
-    );
+    final existing = widget.existingReminder;
+    if (existing != null) {
+      context.read<ReminderProvider>().editReminder(
+        id: existing.id!,
+        title: _todocontrollor.text.trim(),
+        dueDate: _selectedDateTime!,
+        hasTime: _hasTime,
+      );
+    } else {
+      context.read<ReminderProvider>().addReminder(
+        title: _todocontrollor.text.trim(),
+        dueDate: _selectedDateTime!,
+        hasTime: _hasTime,
+      );
+    }
 
     Navigator.pop(context);
   }
@@ -246,8 +271,8 @@ class _DialogBoxState extends State<DialogBox> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  MyButton(
-                    name: 'confirm',
+                    MyButton(
+                    name: widget.existingReminder == null ? 'confirm' : 'save',
                     onPressed: _handleConfirm,
                     color: Colors.tealAccent,
                   ),
