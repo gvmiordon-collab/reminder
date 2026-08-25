@@ -28,6 +28,7 @@ class Reminder extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => ReminderProvider()..load(),
       child: MaterialApp(
+        theme: ThemeData(fontFamily: 'NotoSansTC'),
         home: const MainScreen(),
       ),
     );
