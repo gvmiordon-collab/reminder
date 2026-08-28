@@ -7,6 +7,7 @@ import 'package:reminder/reminder/reminder_provider.dart';
 import 'apple_year_calendar_view.dart';
 import 'apple_month_view.dart';
 import 'day_reminders_sheet.dart';
+import 'hk_holidays.dart'; // 新增
 
 enum _CalendarMode { month, year }
 
@@ -212,6 +213,7 @@ class _CalenderListState extends State<CalenderList> {
               month: monthDate.month,
               selectedDate: _selectedDate,
               reminderDates: reminderDates,
+              holidayDates: hkHolidays, // 新增
               onDayTapped: _handleDayTapped,
               onPreviousMonth: _goToPreviousMonth,
               onNextMonth: _goToNextMonth,
@@ -227,6 +229,7 @@ class _CalenderListState extends State<CalenderList> {
             return AppleYearCalendarView(
               year: year,
               reminderDates: reminderDates,
+              holidayDates: hkHolidays, // 新增
               onMonthTapped: _handleMonthTapped,
               onPreviousYear: _goToPreviousYear,
               onNextYear: _goToNextYear,

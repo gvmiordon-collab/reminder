@@ -25,9 +25,10 @@ class AppleYearCalendarView extends StatelessWidget {
     this.todayColor = const Color(0xFFFF3B30), // iOS systemRed
     this.backgroundColor = Colors.white,
     this.showYearHeader = true,
-    this.childAspectRatio = 0.82,
+    this.childAspectRatio = 0.72, // 原本 0.82,加咗星期標籤行後要留多啲高度
     this.yearHeaderStyle,
     this.monthLabelStyle,
+    this.weekdayLabelStyle, // 新增:星期幾標籤字款
     this.dayNumberStyle,
     this.todayNumberStyle,
     this.todayCircleSize = 16,
@@ -35,6 +36,8 @@ class AppleYearCalendarView extends StatelessWidget {
     this.crossAxisSpacing = 10,
     this.reminderDates = const <DateTime>{},
     this.reminderDotColor = const Color(0xFFAF52DE), // iOS systemPurple
+    this.holidayDates = const <DateTime>{}, // 新增:公眾假期日子
+    this.holidayColor = const Color(0xFFE53935), // 新增:假期數字顏色(紅)
   });
 
   final int year;
@@ -48,6 +51,7 @@ class AppleYearCalendarView extends StatelessWidget {
   final double childAspectRatio;
   final TextStyle? yearHeaderStyle;
   final TextStyle? monthLabelStyle;
+  final TextStyle? weekdayLabelStyle; //新増
   final TextStyle? dayNumberStyle;
   final TextStyle? todayNumberStyle;
   final double todayCircleSize;
@@ -60,6 +64,13 @@ class AppleYearCalendarView extends StatelessWidget {
 
   /// Color of the reminder-indicator dot. Defaults to iOS systemPurple.
   final Color reminderDotColor;
+
+  /// 公眾假期日子(只計日期,唔計時間)。呢啲日子個數字會用
+  /// [holidayColor] 顯示。
+  final Set<DateTime> holidayDates;
+
+  /// 假期數字嘅顏色。
+  final Color holidayColor;
 
   static const List<String> _monthAbbreviations = <String>[
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -121,7 +132,10 @@ class AppleYearCalendarView extends StatelessWidget {
                   todayColor: todayColor,
                   reminderDates: reminderDates,
                   reminderDotColor: reminderDotColor,
+                  holidayDates: holidayDates, //新増
+                  holidayColor: holidayColor, //新増
                   monthLabelStyle: monthLabelStyle,
+                  weekdayLabelStyle: weekdayLabelStyle, //新増
                   dayNumberStyle: dayNumberStyle,
                   todayNumberStyle: todayNumberStyle,
                   todayCircleSize: todayCircleSize,
@@ -146,7 +160,10 @@ class _MonthBox extends StatelessWidget {
     required this.todayColor,
     required this.reminderDates,
     required this.reminderDotColor,
+    required this.holidayDates, //新増
+    required this.holidayColor, //新増
     this.monthLabelStyle,
+    this.weekdayLabelStyle, //新増
     this.dayNumberStyle,
     this.todayNumberStyle,
     this.todayCircleSize = 16,
@@ -161,17 +178,47 @@ class _MonthBox extends StatelessWidget {
   final Color todayColor;
   final Set<DateTime> reminderDates;
   final Color reminderDotColor;
+  final Set<DateTime> holidayDates; //新増
+  final Color holidayColor; //新増
   final TextStyle? monthLabelStyle;
+  final TextStyle? weekdayLabelStyle; //新増
   final TextStyle? dayNumberStyle;
   final TextStyle? todayNumberStyle;
   final double todayCircleSize;
   final ValueChanged<int>? onMonthTapped;
   final ValueChanged<DateTime>? onDayTapped;
 
+  // 同月/日曆格仔一樣,由星期日開始排(對應 firstOfMonth.weekday % 7)。
+  static const List<String> _weekdayLabels = <String>['日', '一', '二', '三', '四', '五', '六'];
+
   bool _isToday(DateTime date) {
     return date.year == today.year &&
         date.month == today.month &&
         date.day == today.day;
+  }
+
+  Widget _buildWeekdayHeaderRow() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        children: List.generate(7, (i) {
+          return Expanded(
+            child: Center(
+              child: Text(
+                _weekdayLabels[i],
+                style: weekdayLabelStyle ??
+                    TextStyle(
+                      fontSize: 7,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey.shade400,
+                      height: 1.0,
+                    ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
   }
 
   List<Widget> _buildDayRows() {
@@ -200,8 +247,10 @@ class _MonthBox extends StatelessWidget {
                 day: currentDay,
                 isToday: _isToday(date),
                 hasReminder: reminderDates.contains(date),
+                isHoliday: holidayDates.contains(date), //新増
                 todayColor: todayColor,
                 dotColor: reminderDotColor,
+                holidayColor: holidayColor, //新増
                 dayNumberStyle: dayNumberStyle,
                 todayNumberStyle: todayNumberStyle,
                 todayCircleSize: todayCircleSize,
@@ -240,6 +289,7 @@ class _MonthBox extends StatelessWidget {
             ),
           ),
         ),
+        _buildWeekdayHeaderRow(),
         ..._buildDayRows(),
       ],
     );
@@ -254,8 +304,10 @@ class _DayCell extends StatelessWidget {
     required this.day,
     required this.isToday,
     required this.hasReminder,
+    required this.isHoliday, //新増
     required this.todayColor,
     required this.dotColor,
+    required this.holidayColor, //新増
     this.dayNumberStyle,
     this.todayNumberStyle,
     this.todayCircleSize = 16,
@@ -265,8 +317,10 @@ class _DayCell extends StatelessWidget {
   final int day;
   final bool isToday;
   final bool hasReminder;
+  final bool isHoliday; //新増
   final Color todayColor;
   final Color dotColor;
+  final Color holidayColor; //新増
   final TextStyle? dayNumberStyle;
   final TextStyle? todayNumberStyle;
   final double todayCircleSize;
@@ -293,13 +347,14 @@ class _DayCell extends StatelessWidget {
     )
         : Text(
       '$day',
-      style: dayNumberStyle ??
+      style: (dayNumberStyle ??
           const TextStyle(
             fontSize: 9,
             fontWeight: FontWeight.w600,
             color: Colors.black87,
             height: 1.0,
-          ),
+          ))
+          .copyWith(color: isHoliday ? holidayColor : null),
     );
 
     return GestureDetector(

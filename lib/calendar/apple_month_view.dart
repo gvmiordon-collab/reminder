@@ -44,6 +44,8 @@ class AppleMonthView extends StatelessWidget {
     this.highlightColor = const Color(0xFFAF52DE), // iOS systemPurple
     this.reminderDates = const <DateTime>{},
     this.reminderHighlightColor = const Color(0xFFEDE7F9), // 淡紫色
+    this.holidayDates = const <DateTime>{}, // 新增:公眾假期日子
+    this.holidayColor = const Color(0xFFE53935), // 新增:假期數字顏色(紅)
   });
 
   /// The year of the month being displayed (e.g. 2026).
@@ -109,6 +111,14 @@ class AppleMonthView extends StatelessWidget {
 
   /// Highlight 「有 reminder」嗰日嘅 background 顏色。
   final Color reminderHighlightColor;
+
+  /// 公眾假期日子(只計日期,唔計時間)。呢啲日子個數字會用
+  /// [holidayColor] 顯示。
+  final Set<DateTime> holidayDates;
+
+  /// 假期數字嘅顏色。
+  final Color holidayColor;
+
 
   static const List<String> _monthNames = <String>[
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -237,6 +247,10 @@ class AppleMonthView extends StatelessWidget {
                               DateTime(info.date.year, info.date.month, info.date.day),
                             ),
                             reminderHighlightColor: reminderHighlightColor,
+                            isHoliday: holidayDates.contains(
+                              DateTime(info.date.year, info.date.month, info.date.day),
+                            ),
+                            holidayColor: holidayColor,
                             dayNumberStyle: dayNumberStyle,
                             todayNumberStyle: todayNumberStyle,
                             selectedNumberStyle: selectedNumberStyle,
@@ -279,6 +293,8 @@ class _MonthDayCell extends StatelessWidget {
     required this.selectedColor,
     required this.hasReminder,
     required this.reminderHighlightColor,
+    required this.isHoliday,
+    required this.holidayColor,
     this.dayNumberStyle,
     this.todayNumberStyle,
     this.selectedNumberStyle,
@@ -294,6 +310,8 @@ class _MonthDayCell extends StatelessWidget {
   final Color selectedColor;
   final bool hasReminder;
   final Color reminderHighlightColor;
+  final bool isHoliday;
+  final Color holidayColor;
   final TextStyle? dayNumberStyle;
   final TextStyle? todayNumberStyle;
   final TextStyle? selectedNumberStyle;
@@ -321,6 +339,7 @@ class _MonthDayCell extends StatelessWidget {
         ),
       );
     } else if (isSelected) {
+      final bool showHoliday = isHoliday && inCurrentMonth;
       number = Container(
         width: 34,
         height: 34,
@@ -328,23 +347,26 @@ class _MonthDayCell extends StatelessWidget {
         decoration: BoxDecoration(color: selectedColor, shape: BoxShape.circle),
         child: Text(
           '${date.day}',
-          style: selectedNumberStyle ??
+          style: (selectedNumberStyle ??
               const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w500,
                 color: Colors.black,
-              ),
+              ))
+              .copyWith(color: showHoliday ? holidayColor : null),
         ),
       );
     } else {
+      final bool showHoliday = isHoliday && inCurrentMonth;
       number = Text(
         '${date.day}',
-        style: (inCurrentMonth ? dayNumberStyle : otherMonthNumberStyle) ??
+        style: ((inCurrentMonth ? dayNumberStyle : otherMonthNumberStyle) ??
             TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w400,
               color: inCurrentMonth ? Colors.black : Colors.grey.shade400,
-            ),
+            ))
+            .copyWith(color: showHoliday ? holidayColor : null),
       );
     }
 
