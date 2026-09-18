@@ -126,7 +126,7 @@ class AppleMonthView extends StatelessWidget {
   ];
 
   static const List<String> _weekdayLabels = <String>[
-    'S', 'M', 'T', 'W', 'T', 'F', 'S',
+    'Sat', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sun',
   ];
 
   bool _isSameDay(DateTime a, DateTime b) {
