@@ -4,44 +4,59 @@
 /// ⚠️ 維護提示:每年到咗(建議每年 5-6 月政府公佈新一年假期表嗰陣),
 /// 要嚟呢個 file 加多一年嘅日期,再跟返你而家嘅流程出新版 APK。
 /// 一次過睇晒未來幾年:https://www.gov.hk/en/about/abouthk/holiday/index.htm
+///
+/// 注意:星期日唔使記錄喺呢度,月曆/年曆 view 直接用 weekday 判斷變紅。
+/// 呢個清單淨係放「有名嘅公眾假期」,撳日子彈出嘅 sheet 會顯示假期名。
 library;
 
-final Set<DateTime> hkHolidays = <DateTime>{
+/// 日期 -> 假期名。key 一律係「淨日期」DateTime(年, 月, 日)。
+final Map<DateTime, String> hkHolidayNames = <DateTime, String>{
   // ===== 2026 =====
-  DateTime(2026, 1, 1),   // 元旦
-  DateTime(2026, 2, 17),  // 農曆年初一
-  DateTime(2026, 2, 18),  // 農曆年初二
-  DateTime(2026, 2, 19),  // 農曆年初三
-  DateTime(2026, 4, 3),   // 耶穌受難節
-  DateTime(2026, 4, 4),   // 耶穌受難節翌日
-  DateTime(2026, 4, 6),   // 清明節翌日
-  DateTime(2026, 4, 7),   // 復活節後翌日
-  DateTime(2026, 5, 1),   // 勞動節
-  DateTime(2026, 5, 25),  // 佛誕翌日
-  DateTime(2026, 6, 19),  // 端午節
-  DateTime(2026, 7, 1),   // 香港特別行政區成立紀念日
-  DateTime(2026, 9, 26),  // 中秋節翌日
-  DateTime(2026, 10, 1),  // 國慶日
-  DateTime(2026, 10, 19), // 重陽節翌日
-  DateTime(2026, 12, 25), // 聖誕節
-  DateTime(2026, 12, 26), // 聖誕節後第一個周日
+  DateTime(2026, 1, 1): '元旦',
+  DateTime(2026, 2, 17): '農曆年初一',
+  DateTime(2026, 2, 18): '農曆年初二',
+  DateTime(2026, 2, 19): '農曆年初三',
+  DateTime(2026, 4, 3): '耶穌受難節',
+  DateTime(2026, 4, 4): '耶穌受難節翌日',
+  DateTime(2026, 4, 6): '清明節翌日',
+  DateTime(2026, 4, 7): '復活節後翌日',
+  DateTime(2026, 5, 1): '勞動節',
+  DateTime(2026, 5, 25): '佛誕翌日',
+  DateTime(2026, 6, 19): '端午節',
+  DateTime(2026, 7, 1): '香港特別行政區成立紀念日',
+  DateTime(2026, 9, 26): '中秋節翌日',
+  DateTime(2026, 10, 1): '國慶日',
+  DateTime(2026, 10, 19): '重陽節翌日',
+  DateTime(2026, 12, 25): '聖誕節',
+  DateTime(2026, 12, 26): '聖誕節後第一個周日',
 
   // ===== 2027 =====
-  DateTime(2027, 1, 1),   // 元旦
-  DateTime(2027, 2, 6),   // 農曆年初一
-  DateTime(2027, 2, 8),   // 農曆年初三(初二啱啱好係星期日,政府補咗初四)
-  DateTime(2027, 2, 9),   // 農曆年初四
-  DateTime(2027, 3, 26),  // 耶穌受難節
-  DateTime(2027, 3, 27),  // 耶穌受難節翌日
-  DateTime(2027, 3, 29),  // 復活節星期一
-  DateTime(2027, 4, 5),   // 清明節
-  DateTime(2027, 5, 1),   // 勞動節
-  DateTime(2027, 5, 13),  // 佛誕
-  DateTime(2027, 6, 9),   // 端午節
-  DateTime(2027, 7, 1),   // 香港特別行政區成立紀念日
-  DateTime(2027, 9, 16),  // 中秋節翌日
-  DateTime(2027, 10, 1),  // 國慶日
-  DateTime(2027, 10, 8),  // 重陽節
-  DateTime(2027, 12, 25), // 聖誕節
-  DateTime(2027, 12, 27), // 聖誕節後第一個周一
+  DateTime(2027, 1, 1): '元旦',
+  DateTime(2027, 2, 6): '農曆年初一',
+  DateTime(2027, 2, 8): '農曆年初三', // 初二啱啱好係星期日,政府補咗初四
+  DateTime(2027, 2, 9): '農曆年初四',
+  DateTime(2027, 3, 26): '耶穌受難節',
+  DateTime(2027, 3, 27): '耶穌受難節翌日',
+  DateTime(2027, 3, 29): '復活節星期一',
+  DateTime(2027, 4, 5): '清明節',
+  DateTime(2027, 5, 1): '勞動節',
+  DateTime(2027, 5, 13): '佛誕',
+  DateTime(2027, 6, 9): '端午節',
+  DateTime(2027, 7, 1): '香港特別行政區成立紀念日',
+  DateTime(2027, 9, 16): '中秋節翌日',
+  DateTime(2027, 10, 1): '國慶日',
+  DateTime(2027, 10, 8): '重陽節',
+  DateTime(2027, 12, 25): '聖誕節',
+  DateTime(2027, 12, 27): '聖誕節後第一個周一',
 };
+
+/// 淨係日期嘅 Set,俾月曆 / 年曆決定邊日個數字要標紅色。
+/// (保留舊名 `hkHolidays`,calender_list.dart 唔使改。)
+final Set<DateTime> hkHolidays = hkHolidayNames.keys.toSet();
+
+/// 攞某一日嘅假期名,唔係公眾假期就返回 null。
+/// 傳入嘅 date 有時間都冇所謂,會自動當「淨日期」處理。
+/// (星期日本身唔算「有名假期」,所以純星期日會返回 null。)
+String? hkHolidayNameOf(DateTime date) {
+  return hkHolidayNames[DateTime(date.year, date.month, date.day)];
+}

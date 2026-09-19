@@ -247,7 +247,7 @@ class _MonthBox extends StatelessWidget {
                 day: currentDay,
                 isToday: _isToday(date),
                 hasReminder: reminderDates.contains(date),
-                isHoliday: holidayDates.contains(date), //新増
+                isHoliday: date.weekday == DateTime.sunday || holidayDates.contains(date),
                 todayColor: todayColor,
                 dotColor: reminderDotColor,
                 holidayColor: holidayColor, //新増

@@ -4,11 +4,16 @@ import 'package:provider/provider.dart';
 import 'package:reminder/reminder/reminder_provider.dart';
 import 'package:reminder/reminder/reminder_structure.dart';
 import 'package:reminder/reminder/dialog_box.dart';
+import 'package:reminder/calendar/hk_holidays.dart';
+import 'package:reminder/calendar/holiday_card.dart';
 
 /// 撳日子彈出嘅 bottom sheet:顯示嗰日嘅 reminder list,
 /// 可以直接 slide check/delete —— 同主 Reminders tab 一樣嘅操作,
 /// 兩邊都係 call `ReminderProvider.removeReminder`(完成=刪除),
 /// 保證行為一致。
+///
+/// 如果嗰日係有名嘅公眾假期,list 最頂會多一張淡紅色假期卡
+/// ([HolidayCard]),純星期日就唔會有。
 class DayRemindersSheet extends StatelessWidget {
   const DayRemindersSheet({super.key, required this.date});
 
@@ -25,6 +30,10 @@ class DayRemindersSheet extends StatelessWidget {
         final dayReminders = provider.reminders
             .where((r) => _isSameDay(r.dueDate, date))
             .toList();
+
+        final holidayName = hkHolidayNameOf(date);
+        final holidayCount = holidayName != null ? 1 : 0;
+        final itemCount = holidayCount + dayReminders.length;
 
         return SafeArea(
           top: false,
@@ -50,7 +59,7 @@ class DayRemindersSheet extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                if (dayReminders.isEmpty)
+                if (itemCount == 0)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 32),
                     child: Text(
@@ -62,9 +71,13 @@ class DayRemindersSheet extends StatelessWidget {
                   Flexible(
                     child: ListView.builder(
                       shrinkWrap: true,
-                      itemCount: dayReminders.length,
+                      itemCount: itemCount,
                       itemBuilder: (context, index) {
-                        final reminder = dayReminders[index];
+                        // 有假期嘅話,第 0 格固定係假期卡
+                        if (holidayName != null && index == 0) {
+                          return HolidayCard(name: holidayName);
+                        }
+                        final reminder = dayReminders[index - holidayCount];
                         return ReminderStructure(
                           key: ValueKey(reminder.id),
                           todo: reminder.title,
