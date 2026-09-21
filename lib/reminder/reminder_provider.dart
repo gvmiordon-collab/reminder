@@ -11,31 +11,54 @@ class ReminderProvider extends ChangeNotifier {
 
   List<Reminder> get reminders => _reminders;
 
+  /// 所有通知相關操作都經呢度包一層:通知排唔到(例如冇權限、系統限制)
+  /// 只係 log,絕對唔可以令 load / add / edit / remove 中途斷咗,
+  /// 令 list 轉圈或者畫面唔 refresh。
+  Future<void> _safely(String label, Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (e, st) {
+      debugPrint('Notification 操作失敗($label): $e\n$st');
+    }
+  }
+
   Future<void> load() async {
     isLoading = true;
     notifyListeners();
 
-    final all = await _db.getAllReminders();
+    try {
+      final all = await _db.getAllReminders();
 
-    final overdue = all.where((r) => r.isOverdue);
-    for (final r in overdue) {
-      if (r.id != null) {
-        await _db.deleteReminder(r.id!);
-        await NotificationService.instance.cancelForReminder(r.id!);
+      final overdue = all.where((r) => r.isOverdue);
+      for (final r in overdue) {
+        if (r.id != null) {
+          await _db.deleteReminder(r.id!);
+          await _safely(
+            'cancel overdue',
+                () => NotificationService.instance.cancelForReminder(r.id!),
+          );
+        }
       }
+
+      _reminders = all.where((r) => !r.isOverdue).toList();
+
+      // 每次開機都重新排晒全部 active reminder 嘅通知——就算之前啲通知因為
+      // 裝置重開/App 更新/重裝甩咗,呢度都會自動補返晒(冪等操作)。
+      for (final r in _reminders) {
+        await _safely(
+          'reschedule ${r.id}',
+              () => NotificationService.instance.scheduleForReminder(r),
+        );
+      }
+      await _safely(
+        'recompute dense',
+            () => NotificationService.instance.recomputeDenseSchedule(_reminders),
+      );
+    } finally {
+      // 無論中途發生咩事,都一定要放走 loading 狀態,list 先唔會永遠轉圈。
+      isLoading = false;
+      notifyListeners();
     }
-
-    _reminders = all.where((r) => !r.isOverdue).toList();
-
-    // 每次開機都重新排晒全部 active reminder 嘅通知——就算之前啲通知因為
-    // 裝置重開/App 更新/重裝甩咗,呢度都會自動補返晒(冪等操作)。
-    for (final r in _reminders) {
-      await NotificationService.instance.scheduleForReminder(r);
-    }
-    await NotificationService.instance.recomputeDenseSchedule(_reminders);
-
-    isLoading = false;
-    notifyListeners();
   }
 
   Future<void> addReminder({
@@ -54,8 +77,14 @@ class ReminderProvider extends ChangeNotifier {
     _reminders = [..._reminders, inserted]
       ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
 
-    await NotificationService.instance.scheduleForReminder(inserted);
-    await NotificationService.instance.recomputeDenseSchedule(_reminders);
+    await _safely(
+      'schedule new',
+          () => NotificationService.instance.scheduleForReminder(inserted),
+    );
+    await _safely(
+      'recompute dense',
+          () => NotificationService.instance.recomputeDenseSchedule(_reminders),
+    );
 
     notifyListeners();
   }
@@ -83,14 +112,23 @@ class ReminderProvider extends ChangeNotifier {
     );
 
     await _db.updateReminder(updated);
-    await NotificationService.instance.cancelForReminder(id);
+    await _safely(
+      'cancel old',
+          () => NotificationService.instance.cancelForReminder(id),
+    );
 
     _reminders = [
       for (final r in _reminders) if (r.id == id) updated else r,
     ]..sort((a, b) => a.dueDate.compareTo(b.dueDate));
 
-    await NotificationService.instance.scheduleForReminder(updated);
-    await NotificationService.instance.recomputeDenseSchedule(_reminders);
+    await _safely(
+      'schedule edited',
+          () => NotificationService.instance.scheduleForReminder(updated),
+    );
+    await _safely(
+      'recompute dense',
+          () => NotificationService.instance.recomputeDenseSchedule(_reminders),
+    );
 
     notifyListeners();
   }
@@ -98,9 +136,15 @@ class ReminderProvider extends ChangeNotifier {
   /// check 同 delete 兩個掣底層都係呢個 function(完成 = 刪除)
   Future<void> removeReminder(int id) async {
     await _db.deleteReminder(id);
-    await NotificationService.instance.cancelForReminder(id);
+    await _safely(
+      'cancel removed',
+          () => NotificationService.instance.cancelForReminder(id),
+    );
     _reminders = _reminders.where((r) => r.id != id).toList();
-    await NotificationService.instance.recomputeDenseSchedule(_reminders);
+    await _safely(
+      'recompute dense',
+          () => NotificationService.instance.recomputeDenseSchedule(_reminders),
+    );
     notifyListeners();
   }
 

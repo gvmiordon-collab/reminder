@@ -39,18 +39,19 @@ class Reminder {
     );
   }
 
-  /// 過期判斷(已同 Gordon 確認):
-  /// - 有時間 -> dueDate 一過就算過期
-  /// - 冇時間 -> 過咗嗰日 23:59:59 先算過期
-  bool get isOverdue {
-    final now = DateTime.now();
-    if (hasTime) {
-      return now.isAfter(dueDate);
-    }
-    final endOfDueDay =
-    DateTime(dueDate.year, dueDate.month, dueDate.day, 23, 59, 59);
-    return now.isAfter(endOfDueDay);
+  /// 真正嘅死線(已同 Gordon 確認):
+  /// - 有時間 -> dueDate 本身
+  /// - 冇時間 -> 嗰日 23:59:59
+  ///
+  /// 過期判斷、milestone 通知、dense 通知全部用呢一個 getter,
+  /// 以後改死線規則淨係改呢度。
+  DateTime get effectiveDeadline {
+    if (hasTime) return dueDate;
+    return DateTime(dueDate.year, dueDate.month, dueDate.day, 23, 59, 59);
   }
+
+  /// 過期判斷:而家一過 [effectiveDeadline] 就算過期。
+  bool get isOverdue => DateTime.now().isAfter(effectiveDeadline);
 
   /// 畫面顯示格式:Today, 4:30 / Tomorrow, 18:00 / 5 Sep, 3:00 / 5 Sep(冇時間)
   String get displayText {
