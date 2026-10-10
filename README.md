@@ -15,3 +15,8 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+
+以後點改時間：只改一個檔
+
+新開 lib/notifications/notification_config.dart，之後所有通知時間都只喺呢度改：

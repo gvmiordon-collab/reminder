@@ -58,7 +58,10 @@ class NotificationService {
       settings: const InitializationSettings(android: androidInit, iOS: iosInit),
       onDidReceiveNotificationResponse: (response) {
         if (response.notificationResponseType ==
-            NotificationResponseType.selectedNotificationAction) return;
+            NotificationResponseType.selectedNotificationAction) {
+          if (response.id != null) _plugin.cancel(id: response.id!);
+          return;
+        }
         requestedTabIndex.value = 0;
       },
       onDidReceiveBackgroundNotificationResponse: notificationActionBackground,
@@ -259,8 +262,9 @@ class NotificationService {
   }
 
 }
-
 @pragma('vm:entry-point')
 void notificationActionBackground(NotificationResponse response) {
-  // 「確認」嗰下通知已經喺 native 層清走,呢度乜都唔使做。
+  final id = response.id;
+  if (id == null) return;
+  FlutterLocalNotificationsPlugin().cancel(id: id);
 }
