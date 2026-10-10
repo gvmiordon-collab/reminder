@@ -2,18 +2,14 @@ import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
-
+import 'notification_config.dart';
 import '../reminder/reminder_database.dart';
 import '../reminder/reminder_model.dart';
 import 'notification_ids.dart';
 import 'notification_texts.dart';
 
-/// 死線前幾耐開始 dense 通知。
-const Duration _denseWindow = Duration(hours: 3);
-
-/// Dense 通知更新間隔。
-const Duration _denseInterval = Duration(minutes: 30);
-
+const Duration _denseWindow = NotificationConfig.denseWindow;
+const Duration _denseInterval = NotificationConfig.denseInterval;
 /// 只有「有揀時間」嘅 reminder 先行 dense 層。冇揀時間嘅當日已經有
 /// 9/12/15/18/21/23:55 六個通知(見 notification_plan.dart),
 /// dense 再加就會 20:59–23:59 每 30 分鐘一次,太密(已同 Gordon 確認)。
@@ -44,8 +40,17 @@ Future<void> refreshDenseNotification() async {
     return;
   }
 
+  /// 通知上面顯示嘅分鐘數:四捨五入,再吸附去最近嘅 30 分鐘倍數(差 3 分鐘內)。
+  int _displayMinutes(Duration left) {
+    final minutes = (left.inSeconds / 60).round();
+    final step = _denseInterval.inMinutes;
+    final snapped = (minutes / step).round() * step;
+    if (snapped > 0 && (minutes - snapped).abs() <= 3) return snapped;
+    return minutes < 0 ? 0 : minutes;
+  }
+
   final target = active.first;
-  final minutesLeft = target.effectiveDeadline.difference(now).inMinutes;
+  final minutesLeft = _displayMinutes(target.effectiveDeadline.difference(now));
   final texts = NotificationTexts.denseMinutesLeft(
     target.title,
     minutesLeft < 0 ? 0 : minutesLeft,
@@ -61,6 +66,15 @@ Future<void> refreshDenseNotification() async {
         denseChannelName,
         importance: Importance.max,
         priority: Priority.high,
+        ongoing: true, // 唔畀 swipe / 「全部清除」清走
+        autoCancel: false, // 撳通知本身都唔會消失
+        actions: <AndroidNotificationAction>[
+          AndroidNotificationAction(
+            denseOkActionId,
+            '確認',
+            cancelNotification: true, // 撳「確認」先清走
+          ),
+        ],
       ),
     ),
     payload: 'reminder:${target.id}',
@@ -80,17 +94,22 @@ Future<void> refreshDenseNotification() async {
 DateTime? computeNextDenseTrigger(List<Reminder> reminders, DateTime now) {
   DateTime? next;
   for (final r in reminders) {
-    if (!_usesDense(r)) continue; // 冇時間嘅 reminder 唔行 dense
+    if (!_usesDense(r)) continue;
     final deadline = r.effectiveDeadline;
-    if (!deadline.isAfter(now)) continue; // 已過死線,同 dense 無關
+    if (!deadline.isAfter(now)) continue;
 
+    final diff = deadline.difference(now);
     final DateTime candidate;
-    if (_inDenseWindow(r, now)) {
-      final regular = now.add(_denseInterval);
-      final atDeadline = deadline.add(const Duration(seconds: 2));
-      candidate = atDeadline.isBefore(regular) ? atDeadline : regular;
-    } else {
+    if (diff > _denseWindow) {
+      // 未入 window:等到「死線 − 3 小時」
       candidate = deadline.subtract(_denseWindow);
+    } else {
+      // 已喺 window 內:揾下一個「死線 − 30 分鐘 × n」格位(嚴格喺而家之後);
+      // 冇格位就係死線後 2 秒(清走過期通知)。
+      final n = (diff.inSeconds - 1) ~/ _denseInterval.inSeconds;
+      candidate = n >= 1
+          ? deadline.subtract(_denseInterval * n)
+          : deadline.add(const Duration(seconds: 2));
     }
 
     if (next == null || candidate.isBefore(next)) next = candidate;

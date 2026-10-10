@@ -6,7 +6,7 @@ import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'notification_config.dart';
 import '../reminder/reminder_model.dart';
 import 'notification_ids.dart';
 import 'notification_plan.dart';
@@ -24,6 +24,21 @@ class NotificationService {
   static const _milestoneChannelName = '備忘錄提醒';
 
   static const _prefExactAlarmPromptDismissed = 'exact_alarm_prompt_dismissed';
+  static const _prefScheduleSignature = 'notification_schedule_signature';
+
+// 版本號 + config 內容。tier 編碼方式改過就要加版本號;
+// 你改 notification_config.dart 都會令呢個字串變。
+  static String get _currentSignature => 'v3|${NotificationConfig.signature}';
+
+  /// 編碼或者時間設定變咗,舊排程用舊 id/舊時間,新版 cancel 唔到。
+  /// 第一次開 app 清一次晒,之後 load() 會用新設定重排返晒。
+  Future<void> _migrateScheduleIfNeeded() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getString(_prefScheduleSignature) == _currentSignature) return;
+    await _plugin.cancelAll();
+    await prefs.setString(_prefScheduleSignature, _currentSignature);
+  }
+
 
   /// main.dart 喺 runApp 之前 call。
   Future<void> init() async {
@@ -42,9 +57,11 @@ class NotificationService {
     await _plugin.initialize(
       settings: const InitializationSettings(android: androidInit, iOS: iosInit),
       onDidReceiveNotificationResponse: (response) {
-        // Gordon 已確認:撳咗通知一律跳去 list 頁。
+        if (response.notificationResponseType ==
+            NotificationResponseType.selectedNotificationAction) return;
         requestedTabIndex.value = 0;
       },
+      onDidReceiveBackgroundNotificationResponse: notificationActionBackground,
     );
 
     if (Platform.isAndroid) {
@@ -63,6 +80,9 @@ class NotificationService {
       ));
       await AndroidAlarmManager.initialize();
     }
+
+// init() 入面,_initialized = true; 之前:
+    await _migrateScheduleIfNeeded();
 
     _initialized = true;
   }
@@ -121,6 +141,7 @@ class NotificationService {
     required DateTime fireTime,
     required String payload,
     required AndroidScheduleMode mode,
+    Duration? replaceAfter,
   }) async {
     Future<void> attempt(AndroidScheduleMode m) {
       return _plugin.zonedSchedule(
@@ -128,14 +149,24 @@ class NotificationService {
         title: texts.title,
         body: texts.body,
         scheduledDate: tz.TZDateTime.from(fireTime, tz.local),
-        notificationDetails: const NotificationDetails(
+        notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
             _milestoneChannelId,
             _milestoneChannelName,
             importance: Importance.max,
             priority: Priority.high,
+            ongoing: true,
+            autoCancel: false,
+            timeoutAfter: replaceAfter?.inMilliseconds,
+            actions: const <AndroidNotificationAction>[
+              AndroidNotificationAction(
+                denseOkActionId, // 同 3 小時倒數共用同一個「確認」action
+                '確認',
+                cancelNotification: true,
+              ),
+            ],
           ),
-          iOS: DarwinNotificationDetails(),
+          iOS: const DarwinNotificationDetails(),
         ),
         androidScheduleMode: m,
         payload: payload,
@@ -161,18 +192,25 @@ class NotificationService {
   /// 排咩、幾時彈、寫咩字,全部喺 notification_plan.dart
   /// ([buildMilestonePlan]),有時間同冇時間嘅 reminder 規則唔同。
   /// Dense tier 唔喺呢度處理,見 [recomputeDenseSchedule]。
-  Future<void> scheduleForReminder(Reminder reminder) async {
+  Future<void> scheduleForReminder(
+      Reminder reminder, {
+        bool clearShown = true,
+      }) async {
     if (reminder.id == null) return;
 
-    // 先清晒呢則 reminder 所有 tier:改咗期、或者由有時間改做冇時間
-    // (兩邊用嘅 tier 唔同),都唔會剩低幽靈通知。
-    await cancelForReminder(reminder.id!);
+    // 新增 / 修改:連已經彈出嘅舊通知一齊清。
+    // 開機重排:淨係清未彈嘅排程,等緊你撳「確認」嘅通知唔掂。
+    if (clearShown) {
+      await cancelForReminder(reminder.id!);
+    } else {
+      await _cancelPendingKeepShown(reminder.id!);
+    }
 
     final now = DateTime.now();
     final mode = await _pickScheduleMode();
 
     for (final item in buildMilestonePlan(reminder)) {
-      if (!item.fireTime.isAfter(now)) continue; // 已經過咗嘅時間點,唔使再排
+      if (!item.fireTime.isAfter(now)) continue;
 
       await _scheduleOne(
         id: NotificationTier.milestoneNotificationId(reminder.id!, item.tier),
@@ -180,6 +218,7 @@ class NotificationService {
         fireTime: item.fireTime,
         payload: 'reminder:${reminder.id}',
         mode: mode,
+        replaceAfter: item.replaceAfter,
       );
     }
   }
@@ -200,4 +239,28 @@ class NotificationService {
     await refreshDenseNotification();
     await scheduleNextDenseAlarm(reminders);
   }
+
+  Future<void> _cancelPendingKeepShown(int reminderId) async {
+    if (!Platform.isAndroid) {
+      await cancelForReminder(reminderId);
+      return;
+    }
+    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    final shownIds = (await androidPlugin?.getActiveNotifications() ??
+        const <ActiveNotification>[])
+        .map((n) => n.id)
+        .toSet();
+    for (final tier in NotificationTier.all) {
+      final id = NotificationTier.milestoneNotificationId(reminderId, tier);
+      if (shownIds.contains(id)) continue;
+      await _plugin.cancel(id: id);
+    }
+  }
+
+}
+
+@pragma('vm:entry-point')
+void notificationActionBackground(NotificationResponse response) {
+  // 「確認」嗰下通知已經喺 native 層清走,呢度乜都唔使做。
 }

@@ -16,10 +16,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = [
-    RemindersPages(),
-    Calender(),
-  ];
+  final List<Widget> _pages = [RemindersPages(), Calender()];
 
   @override
   void initState() {
@@ -41,10 +38,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _createNewReminder() {
-    showDialog(
-      context: context,
-      builder: (context) => DialogBox(),
-    );
+    showDialog(context: context, builder: (context) => DialogBox());
   }
 
   @override
@@ -54,10 +48,7 @@ class _MainScreenState extends State<MainScreen> {
         backgroundColor: Colors.redAccent[100],
         title: Text('Reminders', style: TextStyle(color: Colors.white)),
       ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _pages),
       bottomNavigationBar: BottomAppBar(
         color: Colors.redAccent,
         shape: CircularNotchedRectangle(),
@@ -67,7 +58,10 @@ class _MainScreenState extends State<MainScreen> {
           children: [
             IconButton(
               onPressed: () => setState(() => _currentIndex = 0),
-              icon: Icon(Icons.list, color: _currentIndex == 0 ? Colors.yellow : Colors.white),
+              icon: Icon(
+                Icons.list,
+                color: _currentIndex == 0 ? Colors.yellow : Colors.white,
+              ),
             ),
             SizedBox(width: 40),
             IconButton(
@@ -79,7 +73,10 @@ class _MainScreenState extends State<MainScreen> {
                   calendarIconCommand.send(CalendarIconCommand.resetToMonth);
                 }
               },
-              icon: Icon(Icons.calendar_month, color: _currentIndex == 1 ? Colors.yellow : Colors.white),
+              icon: Icon(
+                Icons.calendar_month,
+                color: _currentIndex == 1 ? Colors.yellow : Colors.white,
+              ),
             ),
           ],
         ),

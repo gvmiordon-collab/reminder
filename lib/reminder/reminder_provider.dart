@@ -47,7 +47,7 @@ class ReminderProvider extends ChangeNotifier {
       for (final r in _reminders) {
         await _safely(
           'reschedule ${r.id}',
-              () => NotificationService.instance.scheduleForReminder(r),
+              () => NotificationService.instance.scheduleForReminder(r, clearShown: false),
         );
       }
       await _safely(

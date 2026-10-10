@@ -1,32 +1,28 @@
+import 'notification_config.dart';
+
 /// 通知 id / channel 呢啲常數,主 app isolate 同 alarm 背景 callback
 /// 兩邊都會 import,獨立開一個檔案方便共用,唔好加任何 UI/Provider 依賴。
 class NotificationTier {
-  // ===== 有揀時間嘅 reminder =====
-  static const int day7 = 0;
-  static const int day3 = 1;
-  static const int day1 = 2;
-  static const int dayOf = 3; // 死線當日 00:05
+  NotificationTier._();
 
-  // ===== 冇揀時間(淨日期)嘅 reminder:當日 6 個通知 =====
-  // (7/3/1 日前嗰三個仍然用 day7/day3/day1 呢三個 tier,淨係時間唔同。)
-  static const int dayOf0900 = 4;
-  static const int dayOf1200 = 5;
-  static const int dayOf1500 = 6;
-  static const int dayOf1800 = 7;
-  static const int dayOf2100 = 8;
-  static const int dayOf2355 = 9;
+  /// 7/3/1 日前:tier = 日子序號 * 5 + 時間序號(0–24)
+  static int advance(int dayIndex, int timeIndex) => dayIndex * 5 + timeIndex;
 
-  /// 每則 reminder 全部 tier。cancel / 重排嗰陣一律清晒佢哋,
-  /// 咁就算 reminder 由「有時間」改做「冇時間」(或者反過來)都唔會剩低幽靈通知。
-  static const List<int> all = [
-    day7, day3, day1, dayOf,
-    dayOf0900, dayOf1200, dayOf1500, dayOf1800, dayOf2100, dayOf2355,
+  /// 冇時間 reminder 當日:tier = 50 + 序號(50–99)
+  static int dayOf(int slotIndex) => 50 + slotIndex;
+
+  /// 而家 config 用到嘅全部 tier。cancel / 重排嗰陣一律清晒佢哋。
+  static List<int> get all => [
+    for (var d = 0; d < NotificationConfig.advanceDays.length; d++)
+      for (var t = 0; t < NotificationConfig.advanceTimes.length; t++)
+        advance(d, t),
+    for (var i = 0; i < NotificationConfig.dateOnlyDayOfTimes.length; i++)
+      dayOf(i),
   ];
 
-  /// id = reminderId * 10 + tier。tier 0–9 已經用晒十個位,
-  /// 將來想再加 tier 就要改呢個編碼方式。
+  /// id = reminderId * 100 + tier
   static int milestoneNotificationId(int reminderId, int tier) =>
-      reminderId * 10 + tier;
+      reminderId * 100 + tier;
 }
 
 /// Dense tier 淨係一個「浮動」通知,代表「而家最早死線嗰單」,
@@ -40,3 +36,4 @@ const int denseAlarmId = 888888;
 
 const String denseChannelId = 'reminder_dense';
 const String denseChannelName = '備忘錄倒數提醒（3小時內）';
+const String denseOkActionId = 'dense_ok';
